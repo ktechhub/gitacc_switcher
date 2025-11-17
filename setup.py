@@ -31,7 +31,7 @@ setup(
     ],
     python_requires=">=3.7",
     install_requires=[
-        # No external dependencies required
+        "argcomplete>=3.6.3",
     ],
     entry_points={
         "console_scripts": [

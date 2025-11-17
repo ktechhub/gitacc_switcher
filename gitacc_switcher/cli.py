@@ -4,7 +4,13 @@ import argparse
 import sys
 from typing import Optional
 
+try:
+    import argcomplete
+except ImportError:
+    argcomplete = None
+
 from .account_manager import AccountManager
+from .completion import get_account_names
 from .utils import echo_color, get_ssh_key_types
 
 
@@ -37,15 +43,18 @@ class CLI:
         self._add_logout_command(subparsers)
         self._add_init_command(subparsers)
         self._add_verify_command(subparsers)
+        self._add_autocomplete_command(subparsers)
 
         return parser
 
     def _get_examples(self) -> str:
         """Get usage examples string."""
-        return """
+        key_types = ", ".join(get_ssh_key_types())
+        return f"""
 Examples:
   gitacc add                    Add a new Git account
   gitacc add --type ed25519     Add account with specific SSH key type
+                                Available types: {key_types}
   gitacc switch myaccount       Switch to an account
   gitacc myaccount              Switch to an account (short form)
   gitacc remove myaccount       Remove an account
@@ -79,11 +88,13 @@ Examples:
             help="Remove a Git account",
             description="Remove a Git account and its SSH keys",
         )
-        parser.add_argument(
+        account_arg = parser.add_argument(
             "account_name",
             nargs="?",
             help="Account name to remove (will prompt if not provided)",
         )
+        if argcomplete:
+            account_arg.completer = lambda **kwargs: get_account_names()
         parser.set_defaults(func=self._handle_remove)
 
     def _add_switch_command(self, subparsers: argparse._SubParsersAction) -> None:
@@ -93,10 +104,12 @@ Examples:
             help="Switch to a Git account",
             description="Switch to a registered Git account",
         )
-        parser.add_argument(
+        account_arg = parser.add_argument(
             "account_name",
             help="Account name to switch to",
         )
+        if argcomplete:
+            account_arg.completer = lambda **kwargs: get_account_names()
         parser.set_defaults(func=self._handle_switch)
 
     def _add_list_command(self, subparsers: argparse._SubParsersAction) -> None:
@@ -124,10 +137,12 @@ Examples:
             help="Initialize repository with account validation",
             description="Set expected account for repository and install pre-commit hook",
         )
-        parser.add_argument(
+        account_arg = parser.add_argument(
             "account_name",
             help="Account name to set as expected for this repository",
         )
+        if argcomplete:
+            account_arg.completer = lambda **kwargs: get_account_names()
         parser.set_defaults(func=self._handle_init)
 
     def _add_verify_command(self, subparsers: argparse._SubParsersAction) -> None:
@@ -138,6 +153,123 @@ Examples:
             description="Check if current Git account matches the expected account for the repository",
         )
         parser.set_defaults(func=self._handle_verify)
+
+    def _add_autocomplete_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'autocomplete' command parser."""
+        parser = subparsers.add_parser(
+            "autocomplete",
+            help="Install shell autocomplete",
+            description="Install shell autocomplete for gitacc command",
+        )
+        subparsers_autocomplete = parser.add_subparsers(
+            dest="autocomplete_command",
+            help="Autocomplete commands",
+        )
+
+        install_parser = subparsers_autocomplete.add_parser(
+            "install",
+            help="Install autocomplete for your shell",
+            description="Install autocomplete for bash/zsh",
+        )
+        install_parser.set_defaults(func=self._handle_autocomplete_install)
+
+    def _handle_autocomplete_install(self, args: argparse.Namespace) -> int:
+        """Handle the 'autocomplete install' command."""
+        if not argcomplete:
+            echo_color("r", "argcomplete is not installed!")
+            echo_color(
+                "y",
+                "This should have been installed automatically with gitacc-switcher.",
+            )
+            echo_color("y", "Please reinstall the package:")
+            echo_color("b", "  pip install --upgrade gitacc-switcher")
+            echo_color("y", "Or if developing locally:")
+            echo_color("b", "  pip install -e .")
+            return 1
+
+        import os
+        import shutil
+
+        shell = os.environ.get("SHELL", "")
+        shell_name = os.path.basename(shell) if shell else ""
+
+        if shell_name in ["bash", "zsh"]:
+            try:
+                # Get the completion script
+                completion_script = argcomplete.shellcode(["gitacc"], shell=shell_name)
+
+                # Determine shell config file
+                if shell_name == "bash":
+                    config_file = os.path.expanduser("~/.bashrc")
+                    # Check for .bash_profile on macOS
+                    if sys.platform == "darwin" and os.path.exists(
+                        os.path.expanduser("~/.bash_profile")
+                    ):
+                        config_file = os.path.expanduser("~/.bash_profile")
+                else:  # zsh
+                    config_file = os.path.expanduser("~/.zshrc")
+
+                # Check if already installed
+                if os.path.exists(config_file):
+                    with open(config_file, "r") as f:
+                        if "register-python-argcomplete gitacc" in f.read():
+                            echo_color(
+                                "y", f"Autocomplete already installed in {config_file}"
+                            )
+                            echo_color(
+                                "y",
+                                f"To activate in this session: source {config_file}",
+                            )
+                            return 0
+
+                # Add to config file
+                with open(config_file, "a") as f:
+                    f.write("\n# Git Account Switcher autocomplete\n")
+                    f.write(completion_script)
+                    f.write("\n")
+
+                echo_color("g", f"Autocomplete installed successfully!")
+                echo_color("g", f"Added to {config_file}")
+
+                # Try to source it automatically for current shell
+                # Note: We can't modify the parent shell, but we can validate and provide instructions
+                try:
+                    import subprocess
+
+                    # Validate the installation works
+                    result = subprocess.run(
+                        [shell, "-c", f"source {config_file} && echo 'OK'"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2,
+                    )
+                    if result.returncode == 0:
+                        echo_color("g", "✓ Installation validated!")
+                        echo_color(
+                            "y",
+                            "Autocomplete will work automatically in new shell sessions.",
+                        )
+                        echo_color(
+                            "y", f"To activate in this session: source {config_file}"
+                        )
+                    else:
+                        echo_color("y", f"To activate: source {config_file}")
+                except Exception:
+                    echo_color("y", f"To activate: source {config_file}")
+
+                return 0
+
+            except Exception as e:
+                echo_color("r", f"Failed to install autocomplete: {e}")
+                echo_color("y", "You can manually install by running:")
+                echo_color("b", f'  eval "$(register-python-argcomplete gitacc)"')
+                return 1
+        else:
+            echo_color("y", f"Shell '{shell_name}' detected.")
+            echo_color("y", "Automatic installation is supported for bash and zsh.")
+            echo_color("y", "For other shells, run manually:")
+            echo_color("b", '  eval "$(register-python-argcomplete gitacc)"')
+            return 0
 
     def _handle_add(self, args: argparse.Namespace) -> int:
         """Handle the 'add' command."""
@@ -211,6 +343,11 @@ Examples:
 def main() -> None:
     """Main entry point for the CLI."""
     cli = CLI()
+
+    # Enable argcomplete if available
+    if argcomplete:
+        argcomplete.autocomplete(cli.parser)
+
     exit_code = cli.run()
     sys.exit(exit_code)
 

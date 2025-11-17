@@ -11,6 +11,7 @@ A Python CLI tool to easily switch between multiple Git SSH accounts. Manage mul
 - 🎨 Colored terminal output
 - 🚀 Cross-platform support (works on Unix/Linux/macOS)
 - ✅ **Commit validation** - Prevent commits with the wrong account using pre-commit hooks
+- ⌨️ **Shell autocomplete** - Tab completion for commands and account names (bash/zsh)
 
 ## Installation
 
@@ -118,6 +119,35 @@ gitacc verify
 ```
 
 Check if your current Git account matches the expected account for the repository. This is useful to verify before committing.
+
+### Shell Autocomplete
+
+Install shell autocomplete for easier command usage:
+
+```bash
+gitacc autocomplete install
+```
+
+This will automatically detect your shell (bash/zsh) and install autocomplete. After installation, restart your shell or run:
+
+```bash
+source ~/.zshrc  # for zsh
+# or
+source ~/.bashrc  # for bash
+```
+
+**What gets completed:**
+- Commands: `add`, `remove`, `switch`, `list`, `logout`, `init`, `verify`, `autocomplete`
+- Account names: When using `switch`, `remove`, `init`, or the shortcut `gitacc <account>`
+- Options: `--type` for `add` command (SSH key types)
+
+**Example:**
+```bash
+gitacc <TAB>           # Shows all commands and account names
+gitacc switch <TAB>    # Shows all registered account names
+gitacc remove <TAB>    # Shows all registered account names
+gitacc init <TAB>      # Shows all registered account names
+```
 
 ## File Structure
 
