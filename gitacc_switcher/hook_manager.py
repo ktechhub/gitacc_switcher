@@ -34,14 +34,30 @@ fi
 # Extract expected name and email from .gitacc
 # Use awk for more reliable parsing
 EXPECTED_NAME=$(awk -v account="$EXPECTED_ACCOUNT" '
-    /^\s*\[/ { in_section = ($0 ~ "\\[" account "\\]") }
-    in_section && /^\s*name\s*=/ { gsub(/^[^=]*=\s*/, ""); print; exit }
-' "$GITACC_FILE" | tr -d '[:space:]')
+    /^\[/ { 
+        in_section = ($0 ~ "\\[" account "\\]")
+        next
+    }
+    in_section && /^[[:space:]]*name[[:space:]]*=/ { 
+        gsub(/^[^=]*=[[:space:]]*/, "")
+        gsub(/[[:space:]]*$/, "")
+        print
+        exit
+    }
+' "$GITACC_FILE")
 
 EXPECTED_EMAIL=$(awk -v account="$EXPECTED_ACCOUNT" '
-    /^\s*\[/ { in_section = ($0 ~ "\\[" account "\\]") }
-    in_section && /^\s*email\s*=/ { gsub(/^[^=]*=\s*/, ""); print; exit }
-' "$GITACC_FILE" | tr -d '[:space:]')
+    /^\[/ { 
+        in_section = ($0 ~ "\\[" account "\\]")
+        next
+    }
+    in_section && /^[[:space:]]*email[[:space:]]*=/ { 
+        gsub(/^[^=]*=[[:space:]]*/, "")
+        gsub(/[[:space:]]*$/, "")
+        print
+        exit
+    }
+' "$GITACC_FILE")
 
 if [ -z "$EXPECTED_NAME" ] || [ -z "$EXPECTED_EMAIL" ]; then
     echo "Error: Account '$EXPECTED_ACCOUNT' not found in ~/.gitacc"
