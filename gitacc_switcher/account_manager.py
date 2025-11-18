@@ -129,6 +129,17 @@ class AccountManager:
             echo_color("r", "Wrong: account name!!")
             return False
 
+        # Show account details and ask for confirmation
+        git_name = account_info.get("name", account_name)
+        email = account_info.get("email", "N/A")
+        echo_color("y", f"Account to remove: {account_name}")
+        echo_color("y", f"  Git name: {git_name}")
+        echo_color("y", f"  Email: {email}")
+
+        if not ask_yes_no(f"Are you sure you want to remove account '{account_name}'?"):
+            echo_color("y", "Removal cancelled.")
+            return False
+
         # Remove SSH keys
         private_key = account_info.get("private_key")
         public_key = account_info.get("public_key")
