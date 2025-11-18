@@ -1,5 +1,6 @@
 """Account management operations."""
 
+import getpass
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -32,15 +33,35 @@ class AccountManager:
             return False
 
         # Get account info from user
-        account_name = input("Enter your git user name: ").strip()
+        account_name = input("Enter account name (identifier): ").strip()
         if not account_name:
             echo_color("r", "Account name cannot be empty!")
             return False
 
-        email = input("Enter your git user mail: ").strip()
+        # Get Git name (defaults to account name)
+        git_name_prompt = (
+            f"Enter Git name (default: {account_name}, press Enter to use same): "
+        )
+        git_name = input(git_name_prompt).strip()
+        if not git_name:
+            git_name = account_name  # Use account name as default
+
+        email = input("Enter your git user email: ").strip()
         if not email:
             echo_color("r", "Email cannot be empty!")
             return False
+
+        # Ask if user wants to add a passphrase to the SSH key
+        passphrase = None
+        if ask_yes_no("Do you want to add a passphrase to the SSH key?"):
+            passphrase = getpass.getpass("Enter passphrase (will be hidden): ")
+            if passphrase:
+                passphrase_confirm = getpass.getpass("Confirm passphrase: ")
+                if passphrase != passphrase_confirm:
+                    echo_color("r", "Passphrases do not match!")
+                    return False
+            else:
+                echo_color("y", "No passphrase set (empty passphrase).")
 
         # Check if account already exists
         existing_account = self.config_manager.get_account(account_name)
@@ -59,11 +80,11 @@ class AccountManager:
             # Remove old account entry first
             self.config_manager.remove_account(account_name)
             private_key, public_key = self.ssh_manager.overwrite_ssh_key(
-                key_type, account_name, email
+                key_type, account_name, email, passphrase
             )
         else:
             private_key, public_key = self.ssh_manager.generate_ssh_key(
-                key_type, account_name, email
+                key_type, account_name, email, passphrase
             )
 
         if not private_key or not public_key:
@@ -72,7 +93,7 @@ class AccountManager:
 
         # Add to .gitacc file
         success = self.config_manager.add_account(
-            account_name, account_name, email, private_key, public_key
+            account_name, git_name, email, private_key, public_key
         )
         if not success:
             echo_color("r", "Failed to save account info!")
@@ -213,6 +234,52 @@ class AccountManager:
             List of account names
         """
         return self.config_manager.list_account_names()
+
+    def list_accounts_detailed(self) -> Dict[str, Dict[str, str]]:
+        """List all registered accounts with details.
+
+        Returns:
+            Dictionary mapping account names to their info
+        """
+        return self.config_manager.read_accounts()
+
+    def update_account_git_name(
+        self, account_name: str, new_git_name: Optional[str] = None
+    ) -> bool:
+        """Update the Git name for an existing account.
+
+        Args:
+            account_name: Account identifier to update
+            new_git_name: New Git name (if None, will prompt)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Get account info
+        account_info = self.config_manager.get_account(account_name)
+        if not account_info:
+            echo_color("r", f'Account "{account_name}" not found!')
+            return False
+
+        current_git_name = account_info.get("name", account_name)
+
+        # Get new Git name
+        if not new_git_name:
+            prompt = f"Enter new Git name (current: {current_git_name}, press Enter to keep same): "
+            new_git_name = input(prompt).strip()
+            if not new_git_name:
+                new_git_name = current_git_name  # Keep same
+
+        # Update in .gitacc file
+        if not self.config_manager.update_account_name(account_name, new_git_name):
+            echo_color("r", "Failed to update account Git name!")
+            return False
+
+        echo_color(
+            "g",
+            f'Updated Git name for account "{account_name}": {current_git_name} → {new_git_name}',
+        )
+        return True
 
     def init_repo(self, account_name: str, repo_path: Optional[Path] = None) -> bool:
         """Initialize repository with expected account and install pre-commit hook.

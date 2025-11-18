@@ -43,6 +43,7 @@ class CLI:
         self._add_logout_command(subparsers)
         self._add_init_command(subparsers)
         self._add_verify_command(subparsers)
+        self._add_update_command(subparsers)
         self._add_autocomplete_command(subparsers)
 
         return parser
@@ -62,6 +63,7 @@ Examples:
   gitacc logout                 Logout current account
   gitacc init myaccount         Initialize repo with account validation
   gitacc verify                 Verify current account matches repo
+  gitacc update myaccount       Update Git name for an account
         """
 
     def _add_add_command(self, subparsers: argparse._SubParsersAction) -> None:
@@ -153,6 +155,26 @@ Examples:
             description="Check if current Git account matches the expected account for the repository",
         )
         parser.set_defaults(func=self._handle_verify)
+
+    def _add_update_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'update' command parser."""
+        parser = subparsers.add_parser(
+            "update",
+            help="Update Git name for an account",
+            description="Update the Git name (commit author name) for an existing account",
+        )
+        account_arg = parser.add_argument(
+            "account_name",
+            help="Account identifier to update",
+        )
+        parser.add_argument(
+            "--name",
+            dest="new_git_name",
+            help="New Git name (will prompt if not provided)",
+        )
+        if argcomplete:
+            account_arg.completer = lambda **kwargs: get_account_names()
+        parser.set_defaults(func=self._handle_update)
 
     def _add_autocomplete_command(self, subparsers: argparse._SubParsersAction) -> None:
         """Add the 'autocomplete' command parser."""
@@ -288,11 +310,16 @@ Examples:
 
     def _handle_list(self, args: argparse.Namespace) -> int:
         """Handle the 'list' command."""
-        accounts = self.account_manager.list_accounts()
+        accounts = self.account_manager.list_accounts_detailed()
         if accounts:
             echo_color("g", "Registered accounts:")
-            for account in accounts:
-                print(f"  - {account}")
+            for account_name, account_info in accounts.items():
+                git_name = account_info.get("name", account_name)
+                email = account_info.get("email", "N/A")
+                if git_name == account_name:
+                    print(f"  - {account_name} ({email})")
+                else:
+                    print(f"  - {account_name} → Git name: {git_name} ({email})")
         else:
             echo_color("y", "No accounts registered yet.")
         return 0
@@ -310,6 +337,13 @@ Examples:
     def _handle_verify(self, args: argparse.Namespace) -> int:
         """Handle the 'verify' command."""
         success = self.account_manager.verify_account()
+        return 0 if success else 1
+
+    def _handle_update(self, args: argparse.Namespace) -> int:
+        """Handle the 'update' command."""
+        success = self.account_manager.update_account_git_name(
+            args.account_name, args.new_git_name
+        )
         return 0 if success else 1
 
     def _handle_account_name_shortcut(self, account_name: str) -> int:

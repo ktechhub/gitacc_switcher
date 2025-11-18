@@ -15,7 +15,11 @@ class SSHManager:
         self.ssh_dir.mkdir(mode=0o700, exist_ok=True)
 
     def generate_ssh_key(
-        self, key_type: str, account_name: str, email: str
+        self,
+        key_type: str,
+        account_name: str,
+        email: str,
+        passphrase: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Generate SSH key pair for an account.
 
@@ -23,6 +27,7 @@ class SSHManager:
             key_type: SSH key type (rsa, ed25519, etc.)
             account_name: Account name (used in key filename)
             email: Email for key comment
+            passphrase: Optional passphrase for the key (None for no passphrase)
 
         Returns:
             Tuple of (private_key_path, public_key_path) or (None, None) on error
@@ -35,18 +40,20 @@ class SSHManager:
             return None, None
 
         try:
+            cmd = [
+                "ssh-keygen",
+                "-t",
+                key_type,
+                "-C",
+                email,
+                "-f",
+                str(private_key_path),
+                "-N",
+                passphrase if passphrase else "",  # Passphrase or empty string
+            ]
+
             subprocess.run(
-                [
-                    "ssh-keygen",
-                    "-t",
-                    key_type,
-                    "-C",
-                    email,
-                    "-f",
-                    str(private_key_path),
-                    "-N",
-                    "",  # No passphrase
-                ],
+                cmd,
                 check=True,
                 capture_output=True,
             )
@@ -56,7 +63,11 @@ class SSHManager:
             return None, None
 
     def overwrite_ssh_key(
-        self, key_type: str, account_name: str, email: str
+        self,
+        key_type: str,
+        account_name: str,
+        email: str,
+        passphrase: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Overwrite existing SSH key pair.
 
@@ -64,6 +75,7 @@ class SSHManager:
             key_type: SSH key type
             account_name: Account name
             email: Email for key comment
+            passphrase: Optional passphrase for the key (None for no passphrase)
 
         Returns:
             Tuple of (private_key_path, public_key_path) or (None, None) on error
@@ -77,7 +89,7 @@ class SSHManager:
         if public_key_path.exists():
             public_key_path.unlink()
 
-        return self.generate_ssh_key(key_type, account_name, email)
+        return self.generate_ssh_key(key_type, account_name, email, passphrase)
 
     def delete_ssh_key(self, private_key_path: str, public_key_path: str) -> bool:
         """Delete SSH key pair.

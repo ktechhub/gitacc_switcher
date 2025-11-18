@@ -120,6 +120,18 @@ gitacc verify
 
 Check if your current Git account matches the expected account for the repository. This is useful to verify before committing.
 
+### Update account Git name
+
+```bash
+gitacc update myaccount
+```
+
+Update the Git name (commit author name) for an existing account. This is useful if:
+- You want to change the name that appears in commits
+- You're migrating from an older version where account name and Git name were the same
+
+**Note for existing users:** Your existing accounts will continue to work. The account identifier `[kalkulus]` stays the same, and you can update the Git name separately if needed.
+
 ### Shell Autocomplete
 
 Install shell autocomplete for easier command usage:

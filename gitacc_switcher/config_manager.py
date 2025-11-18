@@ -181,6 +181,65 @@ class ConfigManager:
         except Exception:
             return False
 
+    def update_account_name(self, account_name: str, new_git_name: str) -> bool:
+        """Update the Git name for an existing account.
+
+        Args:
+            account_name: Account identifier to update
+            new_git_name: New Git name to set
+
+        Returns:
+            True if successful, False otherwise
+        """
+        accounts = self.read_accounts()
+        if account_name not in accounts:
+            return False
+
+        # Read file content
+        with open(self.gitacc_file, "r") as f:
+            lines = f.readlines()
+
+        # Find and update account section
+        new_lines = []
+        in_target_section = False
+        i = 0
+
+        while i < len(lines):
+            line = lines[i]
+            # Check if this is the account section header
+            if re.match(rf"^\s*\[{re.escape(account_name)}\]\s*$", line):
+                in_target_section = True
+                new_lines.append(line)
+                i += 1
+                # Update name field in this section
+                while i < len(lines) and in_target_section:
+                    if re.match(r"^\s*\[", lines[i]) and not re.match(
+                        rf"^\s*\[{re.escape(account_name)}\]\s*$", lines[i]
+                    ):
+                        # Next section found, exit
+                        in_target_section = False
+                        new_lines.append(lines[i])
+                        i += 1
+                        break
+                    elif re.match(r"^\s*name\s*=", lines[i]):
+                        # Update name field
+                        new_lines.append(f"\tname = {new_git_name}\n")
+                        i += 1
+                    else:
+                        new_lines.append(lines[i])
+                        i += 1
+            else:
+                new_lines.append(line)
+                i += 1
+
+        # Write back
+        try:
+            with open(self.gitacc_file, "w") as f:
+                f.writelines(new_lines)
+            return True
+        except Exception:
+            return False
+
     def remove_account(self, account_name: str) -> bool:
         """Remove account from .gitacc file.
 
