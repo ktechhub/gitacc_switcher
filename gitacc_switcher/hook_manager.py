@@ -35,7 +35,12 @@ fi
 # Use awk for more reliable parsing
 EXPECTED_NAME=$(awk -v account="$EXPECTED_ACCOUNT" '
     /^\[/ { 
-        in_section = ($0 ~ "\\[" account "\\]")
+        # Reset in_section for each new section
+        in_section = 0
+        # Check if this is the section we want (exact match)
+        if ($0 == "[" account "]") {
+            in_section = 1
+        }
         next
     }
     in_section && /^[[:space:]]*name[[:space:]]*=/ { 
@@ -48,7 +53,12 @@ EXPECTED_NAME=$(awk -v account="$EXPECTED_ACCOUNT" '
 
 EXPECTED_EMAIL=$(awk -v account="$EXPECTED_ACCOUNT" '
     /^\[/ { 
-        in_section = ($0 ~ "\\[" account "\\]")
+        # Reset in_section for each new section
+        in_section = 0
+        # Check if this is the section we want (exact match)
+        if ($0 == "[" account "]") {
+            in_section = 1
+        }
         next
     }
     in_section && /^[[:space:]]*email[[:space:]]*=/ { 
