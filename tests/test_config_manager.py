@@ -2,7 +2,6 @@
 
 import subprocess
 import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from gitacc_switcher.config_manager import ConfigManager
 
