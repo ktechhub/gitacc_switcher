@@ -1,7 +1,6 @@
 """Tests for HookManager — git pre-commit hook install/uninstall."""
 
 import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 from gitacc_switcher.hook_manager import HookManager
 
