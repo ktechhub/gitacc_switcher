@@ -162,7 +162,9 @@ exit 0
                     )
                     return False
             except Exception as e:
-                echo_color("y", f"Warning: could not read existing hook at {hook_file}: {e}")
+                echo_color(
+                    "y", f"Warning: could not read existing hook at {hook_file}: {e}"
+                )
 
         try:
             with open(hook_file, "w") as f:
