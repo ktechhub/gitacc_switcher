@@ -18,6 +18,7 @@ def cli():
 # Parser configuration
 # ---------------------------------------------------------------------------
 
+
 class TestParserCommands:
     def test_add_default_key_type(self, cli):
         args = cli.parser.parse_args(["add"])
@@ -73,7 +74,9 @@ class TestParserCommands:
         assert args.new_email == "new@co.com"
 
     def test_update_with_both_flags(self, cli):
-        args = cli.parser.parse_args(["update", "mywork", "--name", "N", "--email", "e@e.com"])
+        args = cli.parser.parse_args(
+            ["update", "mywork", "--name", "N", "--email", "e@e.com"]
+        )
         assert args.new_git_name == "N"
         assert args.new_email == "e@e.com"
 
@@ -87,6 +90,7 @@ class TestParserCommands:
 # ---------------------------------------------------------------------------
 # Handler exit codes
 # ---------------------------------------------------------------------------
+
 
 class TestHandlers:
     def test_handle_add_success(self, cli):
@@ -127,18 +131,23 @@ class TestHandlers:
 
     def test_handle_update_success(self, cli):
         cli.account_manager.update_account.return_value = True
-        args = argparse.Namespace(account_name="work", new_git_name=None, new_email=None)
+        args = argparse.Namespace(
+            account_name="work", new_git_name=None, new_email=None
+        )
         assert cli._handle_update(args) == 0
 
     def test_handle_update_failure(self, cli):
         cli.account_manager.update_account.return_value = False
-        args = argparse.Namespace(account_name="work", new_git_name=None, new_email=None)
+        args = argparse.Namespace(
+            account_name="work", new_git_name=None, new_email=None
+        )
         assert cli._handle_update(args) == 1
 
 
 # ---------------------------------------------------------------------------
 # List shows active account marker
 # ---------------------------------------------------------------------------
+
 
 class TestHandleList:
     def test_empty_accounts(self, cli, capsys):
@@ -152,7 +161,8 @@ class TestHandleList:
             "work": {"name": "Work User", "email": "work@co.com"}
         }
         cli.account_manager.config_manager.get_current_git_config.return_value = {
-            "name": "Work User", "email": "work@co.com"
+            "name": "Work User",
+            "email": "work@co.com",
         }
         cli._handle_list(argparse.Namespace())
         assert "* " in capsys.readouterr().out
@@ -162,7 +172,8 @@ class TestHandleList:
             "work": {"name": "Work User", "email": "work@co.com"}
         }
         cli.account_manager.config_manager.get_current_git_config.return_value = {
-            "name": None, "email": None
+            "name": None,
+            "email": None,
         }
         cli._handle_list(argparse.Namespace())
         assert "- work" in capsys.readouterr().out
@@ -172,7 +183,8 @@ class TestHandleList:
             "work": {"name": "Jane Doe", "email": "jane@co.com"}
         }
         cli.account_manager.config_manager.get_current_git_config.return_value = {
-            "name": None, "email": None
+            "name": None,
+            "email": None,
         }
         cli._handle_list(argparse.Namespace())
         out = capsys.readouterr().out
@@ -184,6 +196,7 @@ class TestHandleList:
 # run() — shorthand and dispatch
 # ---------------------------------------------------------------------------
 
+
 class TestRun:
     def test_no_args_shows_help(self, cli, capsys):
         with patch.object(sys, "argv", ["gitacc"]):
@@ -193,8 +206,9 @@ class TestRun:
     def test_shorthand_unknown_account_returns_error(self, cli):
         cli.account_manager.account_exists.return_value = False
         mock_args = argparse.Namespace(command=None)
-        with patch.object(cli.parser, "parse_args", return_value=mock_args), \
-             patch.object(sys, "argv", ["gitacc", "unknown"]):
+        with patch.object(
+            cli.parser, "parse_args", return_value=mock_args
+        ), patch.object(sys, "argv", ["gitacc", "unknown"]):
             result = cli.run()
         assert result == 1
 
@@ -202,8 +216,9 @@ class TestRun:
         cli.account_manager.account_exists.return_value = True
         cli.account_manager.switch_account.return_value = True
         mock_args = argparse.Namespace(command=None)
-        with patch.object(cli.parser, "parse_args", return_value=mock_args), \
-             patch.object(sys, "argv", ["gitacc", "mywork"]):
+        with patch.object(
+            cli.parser, "parse_args", return_value=mock_args
+        ), patch.object(sys, "argv", ["gitacc", "mywork"]):
             result = cli.run()
         assert result == 0
         cli.account_manager.switch_account.assert_called_once_with("mywork")

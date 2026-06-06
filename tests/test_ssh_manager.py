@@ -64,12 +64,16 @@ class TestGenerateSSHKey:
 
     def test_generates_with_passphrase(self, ssh):
         with patch("subprocess.run"):
-            private, public = ssh.generate_ssh_key("rsa", "testpass", "t@t.com", "secret")
+            private, public = ssh.generate_ssh_key(
+                "rsa", "testpass", "t@t.com", "secret"
+            )
         assert private is not None
         assert "testpass" in private
 
     def test_returns_none_on_subprocess_error(self, ssh):
-        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "ssh-keygen")):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "ssh-keygen")
+        ):
             private, public = ssh.generate_ssh_key("rsa", "test", "t@t.com")
         assert private is None
         assert public is None
@@ -112,10 +116,13 @@ class TestDeleteSSHKey:
         assert not public.exists()
 
     def test_succeeds_when_files_missing(self, ssh, tmp_path):
-        assert ssh.delete_ssh_key(
-            str(tmp_path / "nonexistent"),
-            str(tmp_path / "nonexistent.pub"),
-        ) is True
+        assert (
+            ssh.delete_ssh_key(
+                str(tmp_path / "nonexistent"),
+                str(tmp_path / "nonexistent.pub"),
+            )
+            is True
+        )
 
 
 class TestClearAllKeys:
@@ -125,7 +132,9 @@ class TestClearAllKeys:
             assert ssh.clear_all_keys() is True
 
     def test_succeeds_when_no_keys_loaded(self, ssh):
-        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "ssh-add")):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "ssh-add")
+        ):
             assert ssh.clear_all_keys() is True
 
     def test_returns_false_when_ssh_add_missing(self, ssh):

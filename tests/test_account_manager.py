@@ -8,9 +8,9 @@ from gitacc_switcher.account_manager import AccountManager
 
 @pytest.fixture
 def manager():
-    with patch("gitacc_switcher.account_manager.ConfigManager"), \
-         patch("gitacc_switcher.account_manager.SSHManager"), \
-         patch("gitacc_switcher.account_manager.HookManager"):
+    with patch("gitacc_switcher.account_manager.ConfigManager"), patch(
+        "gitacc_switcher.account_manager.SSHManager"
+    ), patch("gitacc_switcher.account_manager.HookManager"):
         m = AccountManager()
     return m
 
@@ -87,7 +87,9 @@ class TestSwitchAccount:
             mock_run.return_value = MagicMock(returncode=0, stdout="1 key\n")
             result = manager.switch_account("work")
         assert result is True
-        manager.config_manager.set_git_config.assert_called_once_with("Work User", "work@company.com")
+        manager.config_manager.set_git_config.assert_called_once_with(
+            "Work User", "work@company.com"
+        )
 
     def test_clears_all_keys_before_adding(self, manager, tmp_path):
         key = tmp_path / "id_rsa_work"
@@ -123,23 +125,40 @@ class TestLogout:
 class TestUpdateAccount:
     def test_update_name(self, manager):
         manager.config_manager.get_account.return_value = {
-            "name": "Old Name", "email": "work@co.com"
+            "name": "Old Name",
+            "email": "work@co.com",
         }
         manager.config_manager.update_account_field.return_value = True
-        assert manager.update_account("work", new_git_name="New Name", new_email="work@co.com") is True
-        manager.config_manager.update_account_field.assert_called_once_with("work", "name", "New Name")
+        assert (
+            manager.update_account(
+                "work", new_git_name="New Name", new_email="work@co.com"
+            )
+            is True
+        )
+        manager.config_manager.update_account_field.assert_called_once_with(
+            "work", "name", "New Name"
+        )
 
     def test_update_email(self, manager):
         manager.config_manager.get_account.return_value = {
-            "name": "Work User", "email": "old@co.com"
+            "name": "Work User",
+            "email": "old@co.com",
         }
         manager.config_manager.update_account_field.return_value = True
-        assert manager.update_account("work", new_git_name="Work User", new_email="new@co.com") is True
-        manager.config_manager.update_account_field.assert_called_once_with("work", "email", "new@co.com")
+        assert (
+            manager.update_account(
+                "work", new_git_name="Work User", new_email="new@co.com"
+            )
+            is True
+        )
+        manager.config_manager.update_account_field.assert_called_once_with(
+            "work", "email", "new@co.com"
+        )
 
     def test_update_both_fields(self, manager):
         manager.config_manager.get_account.return_value = {
-            "name": "Old Name", "email": "old@co.com"
+            "name": "Old Name",
+            "email": "old@co.com",
         }
         manager.config_manager.update_account_field.return_value = True
         manager.update_account("work", new_git_name="New Name", new_email="new@co.com")
@@ -147,9 +166,12 @@ class TestUpdateAccount:
 
     def test_no_changes_does_not_write(self, manager):
         manager.config_manager.get_account.return_value = {
-            "name": "Work User", "email": "work@co.com"
+            "name": "Work User",
+            "email": "work@co.com",
         }
-        manager.update_account("work", new_git_name="Work User", new_email="work@co.com")
+        manager.update_account(
+            "work", new_git_name="Work User", new_email="work@co.com"
+        )
         manager.config_manager.update_account_field.assert_not_called()
 
     def test_returns_false_for_missing_account(self, manager):
@@ -195,14 +217,17 @@ class TestAddAccount:
         key_pub.write_text("ssh-rsa AAAA test@test.com")
         manager.config_manager.get_account.return_value = None
         manager.ssh_manager.generate_ssh_key.return_value = (str(key), str(key_pub))
-        manager.ssh_manager.get_public_key_content.return_value = "ssh-rsa AAAA test@test.com"
+        manager.ssh_manager.get_public_key_content.return_value = (
+            "ssh-rsa AAAA test@test.com"
+        )
         manager.config_manager.add_account.return_value = True
 
     def test_happy_path(self, manager, tmp_path):
         self._setup_add(manager, tmp_path)
         inputs = ["mywork", "My Work", "work@co.com"]
-        with patch("builtins.input", side_effect=inputs), \
-             patch("gitacc_switcher.account_manager.ask_yes_no", return_value=False):
+        with patch("builtins.input", side_effect=inputs), patch(
+            "gitacc_switcher.account_manager.ask_yes_no", return_value=False
+        ):
             result = manager.add_account()
         assert result is True
         manager.config_manager.add_account.assert_called_once()
@@ -219,14 +244,15 @@ class TestAddAccount:
         manager.config_manager.get_account.return_value = None
         manager.ssh_manager.generate_ssh_key.return_value = (None, None)
         inputs = ["mywork", "My Work", "work@co.com"]
-        with patch("builtins.input", side_effect=inputs), \
-             patch("gitacc_switcher.account_manager.ask_yes_no", return_value=False):
+        with patch("builtins.input", side_effect=inputs), patch(
+            "gitacc_switcher.account_manager.ask_yes_no", return_value=False
+        ):
             assert manager.add_account() is False
 
     def test_passphrase_mismatch_fails(self, manager, tmp_path):
         manager.config_manager.get_account.return_value = None
         inputs = ["mywork", "", "work@co.com"]
-        with patch("builtins.input", side_effect=inputs), \
-             patch("gitacc_switcher.account_manager.ask_yes_no", return_value=True), \
-             patch("getpass.getpass", side_effect=["pass1", "pass2"]):
+        with patch("builtins.input", side_effect=inputs), patch(
+            "gitacc_switcher.account_manager.ask_yes_no", return_value=True
+        ), patch("getpass.getpass", side_effect=["pass1", "pass2"]):
             assert manager.add_account() is False

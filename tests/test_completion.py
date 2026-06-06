@@ -11,7 +11,9 @@ def test_returns_account_names():
 
 
 def test_returns_empty_list_on_error():
-    with patch("gitacc_switcher.completion.ConfigManager", side_effect=Exception("fail")):
+    with patch(
+        "gitacc_switcher.completion.ConfigManager", side_effect=Exception("fail")
+    ):
         assert get_account_names() == []
 
 

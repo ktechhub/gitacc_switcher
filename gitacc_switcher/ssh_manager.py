@@ -53,7 +53,15 @@ class SSHManager:
                     env["SSH_ASKPASS"] = askpass_path
                     env["SSH_ASKPASS_REQUIRE"] = "force"  # OpenSSH 8.4+
                     subprocess.run(
-                        ["ssh-keygen", "-t", key_type, "-C", email, "-f", str(private_key_path)],
+                        [
+                            "ssh-keygen",
+                            "-t",
+                            key_type,
+                            "-C",
+                            email,
+                            "-f",
+                            str(private_key_path),
+                        ],
                         check=True,
                         capture_output=True,
                         env=env,
@@ -64,8 +72,15 @@ class SSHManager:
             else:
                 subprocess.run(
                     [
-                        "ssh-keygen", "-t", key_type, "-C", email,
-                        "-f", str(private_key_path), "-N", "",
+                        "ssh-keygen",
+                        "-t",
+                        key_type,
+                        "-C",
+                        email,
+                        "-f",
+                        str(private_key_path),
+                        "-N",
+                        "",
                     ],
                     check=True,
                     capture_output=True,

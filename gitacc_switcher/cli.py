@@ -30,7 +30,9 @@ class CLI:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog=self._get_examples(),
         )
-        parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+        parser.add_argument(
+            "--version", action="version", version=f"%(prog)s {__version__}"
+        )
 
         subparsers = parser.add_subparsers(
             dest="command",
@@ -338,12 +340,17 @@ Examples:
             git_name = account_info.get("name", account_name)
             email = account_info.get("email", "N/A")
             is_active = bool(
-                current_name and current_email
+                current_name
+                and current_email
                 and git_name == current_name
                 and email == current_email
             )
             marker = "*" if is_active else "-"
-            label = f"{account_name} → Git name: {git_name}" if git_name != account_name else account_name
+            label = (
+                f"{account_name} → Git name: {git_name}"
+                if git_name != account_name
+                else account_name
+            )
             suffix = " (active)" if is_active else ""
             print(f"  {marker} {label} ({email}){suffix}")
 

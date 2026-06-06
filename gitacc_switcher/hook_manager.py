@@ -152,8 +152,14 @@ exit 0
                     existing = f.read()
                 if "Git Account Switcher" not in existing:
                     echo_color("r", f"A pre-commit hook already exists at {hook_file}")
-                    echo_color("r", "It was not installed by gitacc and will not be overwritten.")
-                    echo_color("y", "To use gitacc account validation, merge it manually or remove the existing hook.")
+                    echo_color(
+                        "r",
+                        "It was not installed by gitacc and will not be overwritten.",
+                    )
+                    echo_color(
+                        "y",
+                        "To use gitacc account validation, merge it manually or remove the existing hook.",
+                    )
                     return False
             except Exception:
                 pass

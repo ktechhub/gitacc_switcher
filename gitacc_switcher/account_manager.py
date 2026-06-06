@@ -294,23 +294,35 @@ class AccountManager:
             new_git_name = input(prompt).strip() or current_git_name
 
         if new_email is None:
-            prompt = f"Enter new email (current: {current_email}, press Enter to keep): "
+            prompt = (
+                f"Enter new email (current: {current_email}, press Enter to keep): "
+            )
             new_email = input(prompt).strip() or current_email
 
         changed = False
 
         if new_git_name != current_git_name:
-            if not self.config_manager.update_account_field(account_name, "name", new_git_name):
+            if not self.config_manager.update_account_field(
+                account_name, "name", new_git_name
+            ):
                 echo_color("r", "Failed to update Git name!")
                 return False
-            echo_color("g", f'Updated Git name for "{account_name}": {current_git_name} → {new_git_name}')
+            echo_color(
+                "g",
+                f'Updated Git name for "{account_name}": {current_git_name} → {new_git_name}',
+            )
             changed = True
 
         if new_email != current_email:
-            if not self.config_manager.update_account_field(account_name, "email", new_email):
+            if not self.config_manager.update_account_field(
+                account_name, "email", new_email
+            ):
                 echo_color("r", "Failed to update email!")
                 return False
-            echo_color("g", f'Updated email for "{account_name}": {current_email} → {new_email}')
+            echo_color(
+                "g",
+                f'Updated email for "{account_name}": {current_email} → {new_email}',
+            )
             changed = True
 
         if not changed:

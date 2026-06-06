@@ -181,7 +181,9 @@ class ConfigManager:
         except Exception:
             return False
 
-    def update_account_field(self, account_name: str, field: str, new_value: str) -> bool:
+    def update_account_field(
+        self, account_name: str, field: str, new_value: str
+    ) -> bool:
         """Update a single field for an existing account.
 
         Args:

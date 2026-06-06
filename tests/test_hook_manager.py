@@ -37,7 +37,10 @@ class TestGetHooksDir:
 
     def test_returns_none_on_subprocess_error(self, hook_manager, tmp_path):
         import subprocess
-        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(128, "git")):
+
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(128, "git")
+        ):
             assert hook_manager.get_hooks_dir(tmp_path) is None
 
 

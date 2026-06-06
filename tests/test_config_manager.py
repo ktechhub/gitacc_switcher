@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from gitacc_switcher.config_manager import ConfigManager
 
-
 SAMPLE_GITACC = (
     "[work]\n"
     "\tname = Work User\n"
@@ -97,7 +96,9 @@ class TestAddAccount:
         assert config.get_account("test") is not None
 
     def test_persists_all_fields(self, config):
-        config.add_account("work", "Work User", "work@co.com", "/path/key", "/path/key.pub")
+        config.add_account(
+            "work", "Work User", "work@co.com", "/path/key", "/path/key.pub"
+        )
         account = config.get_account("work")
         assert account["name"] == "Work User"
         assert account["email"] == "work@co.com"
@@ -130,11 +131,17 @@ class TestRemoveAccount:
 
 class TestUpdateAccountField:
     def test_updates_name(self, config_with_accounts):
-        assert config_with_accounts.update_account_field("work", "name", "New Name") is True
+        assert (
+            config_with_accounts.update_account_field("work", "name", "New Name")
+            is True
+        )
         assert config_with_accounts.get_account("work")["name"] == "New Name"
 
     def test_updates_email(self, config_with_accounts):
-        assert config_with_accounts.update_account_field("work", "email", "new@co.com") is True
+        assert (
+            config_with_accounts.update_account_field("work", "email", "new@co.com")
+            is True
+        )
         assert config_with_accounts.get_account("work")["email"] == "new@co.com"
 
     def test_other_fields_unchanged_after_update(self, config_with_accounts):
@@ -169,7 +176,9 @@ class TestSetGitConfig:
         assert mock_run.call_count == 2
 
     def test_returns_false_on_error(self, config):
-        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")
+        ):
             assert config.set_git_config("Test", "test@test.com") is False
 
 
@@ -196,7 +205,9 @@ class TestIsGitRepo:
             assert config.is_git_repo(tmp_path) is True
 
     def test_returns_false_for_non_repo(self, config, tmp_path):
-        with patch("subprocess.run", side_effect=subprocess.CalledProcessError(128, "git")):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(128, "git")
+        ):
             assert config.is_git_repo(tmp_path) is False
 
 

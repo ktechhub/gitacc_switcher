@@ -2,7 +2,12 @@
 
 import pytest
 from unittest.mock import patch
-from gitacc_switcher.utils import echo_color, ask_yes_no, validate_ssh_key_type, get_ssh_key_types
+from gitacc_switcher.utils import (
+    echo_color,
+    ask_yes_no,
+    validate_ssh_key_type,
+    get_ssh_key_types,
+)
 
 
 class TestValidateSSHKeyType:
