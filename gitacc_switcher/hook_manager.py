@@ -4,6 +4,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from .utils import echo_color
+
 
 class HookManager:
     """Manages Git hooks for account validation."""
@@ -144,11 +146,22 @@ exit 0
         hooks_dir.mkdir(parents=True, exist_ok=True)
         hook_file = hooks_dir / "pre-commit"
 
+        if hook_file.exists():
+            try:
+                with open(hook_file, "r") as f:
+                    existing = f.read()
+                if "Git Account Switcher" not in existing:
+                    echo_color("r", f"A pre-commit hook already exists at {hook_file}")
+                    echo_color("r", "It was not installed by gitacc and will not be overwritten.")
+                    echo_color("y", "To use gitacc account validation, merge it manually or remove the existing hook.")
+                    return False
+            except Exception:
+                pass
+
         try:
             with open(hook_file, "w") as f:
                 f.write(self.PRE_COMMIT_HOOK_TEMPLATE)
 
-            # Make it executable
             hook_file.chmod(0o755)
             return True
         except Exception:

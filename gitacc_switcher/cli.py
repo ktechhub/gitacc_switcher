@@ -9,6 +9,7 @@ try:
 except ImportError:
     argcomplete = None
 
+from . import __version__
 from .account_manager import AccountManager
 from .completion import get_account_names
 from .utils import echo_color, get_ssh_key_types
@@ -29,6 +30,7 @@ class CLI:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog=self._get_examples(),
         )
+        parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
         subparsers = parser.add_subparsers(
             dest="command",
@@ -45,6 +47,13 @@ class CLI:
         self._add_verify_command(subparsers)
         self._add_update_command(subparsers)
         self._add_autocomplete_command(subparsers)
+
+        # Include account names in top-level completion so `gitacc <TAB>` works for
+        # the `gitacc <account>` shorthand, not just for subcommand names.
+        if argcomplete:
+            subparsers.completer = lambda prefix, **kwargs: (
+                list(subparsers.choices.keys()) + get_account_names()
+            )
 
         return parser
 
@@ -160,8 +169,8 @@ Examples:
         """Add the 'update' command parser."""
         parser = subparsers.add_parser(
             "update",
-            help="Update Git name for an account",
-            description="Update the Git name (commit author name) for an existing account",
+            help="Update Git name and/or email for an account",
+            description="Update the Git name and/or email for an existing account",
         )
         account_arg = parser.add_argument(
             "account_name",
@@ -171,6 +180,11 @@ Examples:
             "--name",
             dest="new_git_name",
             help="New Git name (will prompt if not provided)",
+        )
+        parser.add_argument(
+            "--email",
+            dest="new_email",
+            help="New email address (will prompt if not provided)",
         )
         if argcomplete:
             account_arg.completer = lambda **kwargs: get_account_names()
@@ -311,17 +325,28 @@ Examples:
     def _handle_list(self, args: argparse.Namespace) -> int:
         """Handle the 'list' command."""
         accounts = self.account_manager.list_accounts_detailed()
-        if accounts:
-            echo_color("g", "Registered accounts:")
-            for account_name, account_info in accounts.items():
-                git_name = account_info.get("name", account_name)
-                email = account_info.get("email", "N/A")
-                if git_name == account_name:
-                    print(f"  - {account_name} ({email})")
-                else:
-                    print(f"  - {account_name} → Git name: {git_name} ({email})")
-        else:
+        if not accounts:
             echo_color("y", "No accounts registered yet.")
+            return 0
+
+        current_config = self.account_manager.config_manager.get_current_git_config()
+        current_name = current_config.get("name")
+        current_email = current_config.get("email")
+
+        echo_color("g", "Registered accounts:")
+        for account_name, account_info in accounts.items():
+            git_name = account_info.get("name", account_name)
+            email = account_info.get("email", "N/A")
+            is_active = bool(
+                current_name and current_email
+                and git_name == current_name
+                and email == current_email
+            )
+            marker = "*" if is_active else "-"
+            label = f"{account_name} → Git name: {git_name}" if git_name != account_name else account_name
+            suffix = " (active)" if is_active else ""
+            print(f"  {marker} {label} ({email}){suffix}")
+
         return 0
 
     def _handle_logout(self, args: argparse.Namespace) -> int:
@@ -341,8 +366,8 @@ Examples:
 
     def _handle_update(self, args: argparse.Namespace) -> int:
         """Handle the 'update' command."""
-        success = self.account_manager.update_account_git_name(
-            args.account_name, args.new_git_name
+        success = self.account_manager.update_account(
+            args.account_name, args.new_git_name, args.new_email
         )
         return 0 if success else 1
 
@@ -363,6 +388,10 @@ Examples:
         if not args.command and len(sys.argv) > 1:
             account_name = sys.argv[1]
             if account_name not in ["-h", "--help", "--version"]:
+                if not self.account_manager.account_exists(account_name):
+                    echo_color("r", f'Unknown command or account: "{account_name}"')
+                    self.parser.print_help()
+                    return 1
                 return self._handle_account_name_shortcut(account_name)
 
         # Handle commands
