@@ -1,6 +1,6 @@
 # Git Account Switcher
 
-[![CI](https://github.com/ktechhub/gitacc-switcher/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/ktechhub/gitacc-switcher/actions/workflows/pipeline.yaml)
+[![CI](https://github.com/ktechhub/gitacc_switcher/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/ktechhub/gitacc_switcher/actions/workflows/pipeline.yaml)
 [![PyPI](https://img.shields.io/pypi/v/gitacc-switcher)](https://pypi.org/project/gitacc-switcher/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/gitacc-switcher)](https://pypi.org/project/gitacc-switcher/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -27,8 +27,8 @@ pip install gitacc-switcher
 ### From source
 
 ```bash
-git clone https://github.com/ktechhub/gitacc-switcher.git
-cd gitacc-switcher
+git clone https://github.com/ktechhub/gitacc_switcher.git
+cd gitacc_switcher
 pip install .
 ```
 
