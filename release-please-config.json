@@ -5,7 +5,6 @@
       "release-type": "python",
       "package-name": "gitacc-switcher",
       "changelog-path": "CHANGELOG.md",
-      "bump-minor-pre-major": true,
       "extra-files": [
         "gitacc_switcher/__init__.py",
         "setup.py"
