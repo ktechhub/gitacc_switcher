@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v0.2.0...gitacc-switcher-v0.2.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* correct action versions in publish workflow and remove bump-minor-pre-major ([0f22f88](https://github.com/ktechhub/gitacc_switcher/commit/0f22f88e1aa69849216b9a74018e21eb3402cfa5))
+* correct publish workflow action versions and remove bump-minor-pre-major ([#8](https://github.com/ktechhub/gitacc_switcher/issues/8)) ([9d50f42](https://github.com/ktechhub/gitacc_switcher/commit/9d50f42f7675e687012fc6478a78f7b843817ae7))
+
 ## [0.2.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v0.1.0...gitacc-switcher-v0.2.0) (2026-06-06)
 
 
