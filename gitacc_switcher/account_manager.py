@@ -51,6 +51,18 @@ class AccountManager:
             echo_color("r", "Email cannot be empty!")
             return False
 
+        # Check if account already exists before prompting for passphrase
+        existing_account = self.config_manager.get_account(account_name)
+        overwrite = False
+
+        if existing_account:
+            echo_color("r", "Warning: Already have same account name.")
+            if ask_yes_no("Do you want to overwrite?"):
+                overwrite = True
+            else:
+                echo_color("y", "Please use another account name.")
+                return False
+
         # Ask if user wants to add a passphrase to the SSH key
         passphrase = None
         if ask_yes_no("Do you want to add a passphrase to the SSH key?"):
@@ -62,18 +74,6 @@ class AccountManager:
                     return False
             else:
                 echo_color("y", "No passphrase set (empty passphrase).")
-
-        # Check if account already exists
-        existing_account = self.config_manager.get_account(account_name)
-        overwrite = False
-
-        if existing_account:
-            echo_color("r", "Warning: Already have same account name.")
-            if ask_yes_no("Do you want to overwrite?"):
-                overwrite = True
-            else:
-                echo_color("y", "Please use another account name.")
-                return False
 
         # Generate SSH keys
         if overwrite:
@@ -254,42 +254,80 @@ class AccountManager:
         """
         return self.config_manager.read_accounts()
 
-    def update_account_git_name(
-        self, account_name: str, new_git_name: Optional[str] = None
+    def account_exists(self, account_name: str) -> bool:
+        """Check if an account exists.
+
+        Args:
+            account_name: Account name to check
+
+        Returns:
+            True if account exists, False otherwise
+        """
+        return self.config_manager.get_account(account_name) is not None
+
+    def update_account(
+        self,
+        account_name: str,
+        new_git_name: Optional[str] = None,
+        new_email: Optional[str] = None,
     ) -> bool:
-        """Update the Git name for an existing account.
+        """Update the Git name and/or email for an existing account.
 
         Args:
             account_name: Account identifier to update
             new_git_name: New Git name (if None, will prompt)
+            new_email: New email (if None, will prompt)
 
         Returns:
             True if successful, False otherwise
         """
-        # Get account info
         account_info = self.config_manager.get_account(account_name)
         if not account_info:
             echo_color("r", f'Account "{account_name}" not found!')
             return False
 
         current_git_name = account_info.get("name", account_name)
+        current_email = account_info.get("email", "")
 
-        # Get new Git name
-        if not new_git_name:
-            prompt = f"Enter new Git name (current: {current_git_name}, press Enter to keep same): "
-            new_git_name = input(prompt).strip()
-            if not new_git_name:
-                new_git_name = current_git_name  # Keep same
+        if new_git_name is None:
+            prompt = f"Enter new Git name (current: {current_git_name}, press Enter to keep): "
+            new_git_name = input(prompt).strip() or current_git_name
 
-        # Update in .gitacc file
-        if not self.config_manager.update_account_name(account_name, new_git_name):
-            echo_color("r", "Failed to update account Git name!")
-            return False
+        if new_email is None:
+            prompt = (
+                f"Enter new email (current: {current_email}, press Enter to keep): "
+            )
+            new_email = input(prompt).strip() or current_email
 
-        echo_color(
-            "g",
-            f'Updated Git name for account "{account_name}": {current_git_name} → {new_git_name}',
-        )
+        changed = False
+
+        if new_git_name != current_git_name:
+            if not self.config_manager.update_account_field(
+                account_name, "name", new_git_name
+            ):
+                echo_color("r", "Failed to update Git name!")
+                return False
+            echo_color(
+                "g",
+                f'Updated Git name for "{account_name}": {current_git_name} → {new_git_name}',
+            )
+            changed = True
+
+        if new_email != current_email:
+            if not self.config_manager.update_account_field(
+                account_name, "email", new_email
+            ):
+                echo_color("r", "Failed to update email!")
+                return False
+            echo_color(
+                "g",
+                f'Updated email for "{account_name}": {current_email} → {new_email}',
+            )
+            changed = True
+
+        if not changed:
+            echo_color("y", "No changes made.")
+
         return True
 
     def init_repo(self, account_name: str, repo_path: Optional[Path] = None) -> bool:

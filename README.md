@@ -1,21 +1,24 @@
 # Git Account Switcher
 
+[![CI](https://github.com/ktechhub/gitacc-switcher/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/ktechhub/gitacc-switcher/actions/workflows/pipeline.yaml)
+[![PyPI](https://img.shields.io/pypi/v/gitacc-switcher)](https://pypi.org/project/gitacc-switcher/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/gitacc-switcher)](https://pypi.org/project/gitacc-switcher/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Python CLI tool to easily switch between multiple Git SSH accounts. Manage multiple Git accounts with separate SSH keys and switch between them seamlessly.
 
 ## Features
 
-- 🔐 Manage multiple Git accounts with separate SSH keys
-- 🔄 Switch between accounts easily
-- 🔑 Generate SSH keys automatically
-- 📝 Store account information securely
-- 🎨 Colored terminal output
-- 🚀 Cross-platform support (works on Unix/Linux/macOS)
-- ✅ **Commit validation** - Prevent commits with the wrong account using pre-commit hooks
-- ⌨️ **Shell autocomplete** - Tab completion for commands and account names (bash/zsh)
+- Manage multiple Git accounts with separate SSH keys
+- Switch between accounts easily — one command, no fuss
+- Generate SSH keys automatically (rsa, ed25519, ecdsa, and more)
+- Optional passphrase support for SSH keys
+- Colored terminal output with active account indicator
+- Pre-commit hook to prevent commits with the wrong account
+- Shell autocomplete for bash and zsh
+- Cross-platform support (Linux / macOS)
 
 ## Installation
-
-### From PyPI (when published)
 
 ```bash
 pip install gitacc-switcher
@@ -24,202 +27,168 @@ pip install gitacc-switcher
 ### From source
 
 ```bash
-git clone https://github.com/ktechhub/gitacc_switcher.git
-cd gitacc_switcher
+git clone https://github.com/ktechhub/gitacc-switcher.git
+cd gitacc-switcher
 pip install .
 ```
 
-## Usage
+## Quick start
 
-### Add a new account
+```bash
+# 1. Add your accounts
+gitacc add                    # prompts for name, email, optional passphrase
+gitacc add --type ed25519     # specify key type
+
+# 2. Switch between them
+gitacc switch work            # full form
+gitacc work                   # shorthand — same thing
+
+# 3. See what's registered (active account is marked with *)
+gitacc list
+
+# 4. Prevent wrong-account commits in a repo
+gitacc init work              # sets expected account + installs pre-commit hook
+gitacc verify                 # manual check
+```
+
+## Commands
+
+### `gitacc add [--type TYPE]`
+
+Add a new Git account. Prompts for:
+- Account identifier (used in key filename and as a reference)
+- Git display name (defaults to account identifier)
+- Email
+- Optional SSH key passphrase
+
+Available key types: `rsa` (default), `ed25519`, `ecdsa`, `ecdsa-sk`, `ed25519-sk`, `dsa`
 
 ```bash
 gitacc add
-```
-
-This will prompt you for:
-- Git user name (account identifier)
-- Git user email
-
-The tool will generate SSH keys automatically and save them to `~/.ssh/`.
-
-**Specify SSH key type:**
-
-```bash
 gitacc add --type ed25519
 ```
 
-Available key types: `dsa`, `ecdsa`, `ecdsa-sk`, `ed25519`, `ed25519-sk`, `rsa` (default)
+### `gitacc switch <account>` / `gitacc <account>`
 
-### Switch to an account
-
-```bash
-gitacc switch myaccount
-```
-
-Or use the short form:
+Switch to a registered account. Clears all keys from the SSH agent, loads only this account's key, and sets `git config --global user.name/email`.
 
 ```bash
-gitacc myaccount
+gitacc switch mywork
+gitacc mywork          # shorthand
 ```
 
-This will:
-- Start SSH agent (if not running)
-- Add the account's SSH key to the agent
-- Set Git global user.name and user.email
+> The SSH agent must already be running (`eval $(ssh-agent)`). If it isn't, gitacc will tell you.
 
-### List all accounts
+### `gitacc list`
+
+List all registered accounts. The currently active account (matching global git config) is marked with `*`.
 
 ```bash
 gitacc list
+# Registered accounts:
+#   * work → Git name: Jane Doe (jane@company.com) (active)
+#   - personal (jane@personal.com)
 ```
 
-### Remove an account
+### `gitacc remove [account]`
+
+Remove an account and its SSH keys. Prompts for confirmation.
 
 ```bash
-gitacc remove myaccount
+gitacc remove mywork
+gitacc remove          # prompts for account name
 ```
 
-Or without specifying the account name (will prompt):
+### `gitacc update <account> [--name NAME] [--email EMAIL]`
+
+Update the Git display name and/or email for an existing account. Prompts for any field not provided as a flag.
 
 ```bash
-gitacc remove
+gitacc update mywork --name "Jane Doe"
+gitacc update mywork --email "jane@newcompany.com"
+gitacc update mywork   # prompts for both
 ```
 
-### Logout current account
+### `gitacc init <account>`
+
+Bind the current repository to an account and install a pre-commit hook. Any commit attempt with a mismatched account will be blocked.
 
 ```bash
-gitacc logout
+cd ~/projects/work-repo
+gitacc init mywork
 ```
 
-This will:
-- Kill the SSH agent
-- Unset Git global user.name and user.email
+### `gitacc verify`
 
-### Initialize repository with account validation
-
-```bash
-gitacc init myaccount
-```
-
-This will:
-- Set the expected account for the current repository
-- Install a pre-commit hook that prevents commits with the wrong account
-
-**How it works:**
-1. Run `gitacc init <account_name>` in your repository
-2. The tool sets the expected account and installs a pre-commit hook
-3. When you try to commit, the hook checks if your current Git account matches the expected account
-4. If it doesn't match, the commit is blocked with a helpful error message
-
-### Verify current account
+Check whether the current Git identity matches the account expected by this repository.
 
 ```bash
 gitacc verify
 ```
 
-Check if your current Git account matches the expected account for the repository. This is useful to verify before committing.
+### `gitacc logout`
 
-### Update account Git name
+Kill the SSH agent and unset the global Git user config.
 
 ```bash
-gitacc update myaccount
+gitacc logout
 ```
 
-Update the Git name (commit author name) for an existing account. This is useful if:
-- You want to change the name that appears in commits
-- You're migrating from an older version where account name and Git name were the same
+### `gitacc autocomplete install`
 
-**Note for existing users:** Your existing accounts will continue to work. The account identifier `[kalkulus]` stays the same, and you can update the Git name separately if needed.
-
-### Shell Autocomplete
-
-Install shell autocomplete for easier command usage:
+Install tab-completion for your shell (bash or zsh). After running, restart your shell or `source` your profile.
 
 ```bash
 gitacc autocomplete install
 ```
 
-This will automatically detect your shell (bash/zsh) and install autocomplete. After installation, restart your shell or run:
+Completions cover: all command names, account names (for `switch`, `remove`, `init`, `update`), and key types (for `add --type`).
+
+### `gitacc --version`
 
 ```bash
-source ~/.zshrc  # for zsh
-# or
-source ~/.bashrc  # for bash
+gitacc --version
+# gitacc 0.1.0
 ```
 
-**What gets completed:**
-- Commands: `add`, `remove`, `switch`, `list`, `logout`, `init`, `verify`, `autocomplete`
-- Account names: When using `switch`, `remove`, `init`, or the shortcut `gitacc <account>`
-- Options: `--type` for `add` command (SSH key types)
+## How pre-commit validation works
 
-**Example:**
-```bash
-gitacc <TAB>           # Shows all commands and account names
-gitacc switch <TAB>    # Shows all registered account names
-gitacc remove <TAB>    # Shows all registered account names
-gitacc init <TAB>      # Shows all registered account names
-```
+1. `gitacc init mywork` stores `gitacc.expected-account = mywork` in the repo's local git config and writes a pre-commit hook.
+2. On every `git commit`, the hook reads `~/.gitacc` and compares the expected account's name/email against the current `git config user.*`.
+3. If they don't match, the commit is blocked with a helpful message pointing to `gitacc switch`.
 
-## File Structure
+## File layout
 
-The tool stores account information in `~/.gitacc` in an INI-like format:
+| Path | Purpose |
+|------|---------|
+| `~/.gitacc` | Stores all account entries (INI format) |
+| `~/.ssh/id_<type>_<account>` | Private SSH key per account |
+| `~/.ssh/id_<type>_<account>.pub` | Public SSH key per account |
 
-```
-[account_name]
-    name = account_name
-    email = user@example.com
-    private_key = /home/user/.ssh/id_rsa_account_name
-    public_key = /home/user/.ssh/id_rsa_account_name.pub
-```
+`~/.gitacc` format:
 
-SSH keys are stored in `~/.ssh/` with the naming pattern:
-- Private key: `id_{key_type}_{account_name}`
-- Public key: `id_{key_type}_{account_name}.pub`
-
-## Examples
-
-```bash
-# Add a new account
-gitacc add
-# Enter: mywork
-# Enter: work@company.com
-
-# Add account with ed25519 key
-gitacc add --type ed25519
-
-# Switch to account
-gitacc switch mywork
-# or
-gitacc mywork
-
-# List all accounts
-gitacc list
-
-# Remove an account
-gitacc remove mywork
-
-# Initialize repository with account validation
-gitacc init mywork
-
-# Verify current account matches repository
-gitacc verify
-
-# Logout
-gitacc logout
+```ini
+[mywork]
+    name = Jane Doe
+    email = jane@company.com
+    private_key = /home/jane/.ssh/id_ed25519_mywork
+    public_key = /home/jane/.ssh/id_ed25519_mywork.pub
 ```
 
 ## Requirements
 
-- Python 3.7+
-- Git installed
-- SSH tools (ssh-keygen, ssh-agent, ssh-add) available in PATH
+- Python 3.8+
+- Git
+- SSH tools (`ssh-keygen`, `ssh-agent`, `ssh-add`) in `PATH`
 
-## License
+## Changelog
 
-MIT License - see LICENSE file for details
+See [CHANGELOG.md](CHANGELOG.md) for a full history of changes.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commit conventions, and the PR process.
 
+## License
+
+MIT — see [LICENSE](LICENSE) for details.

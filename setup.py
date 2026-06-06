@@ -13,8 +13,8 @@ setup(
     description="Git Account Switcher - Manage multiple Git SSH accounts easily",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="ktechhub",
+    author_email="mm@ktechhub.com",
     url="https://github.com/ktechhub/gitacc-switcher",
     packages=find_packages(),
     classifiers=[
@@ -28,6 +28,8 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
     ],
     python_requires=">=3.7",
     install_requires=[

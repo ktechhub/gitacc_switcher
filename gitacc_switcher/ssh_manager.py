@@ -1,7 +1,9 @@
 """Manage SSH keys and SSH agent."""
 
 import os
+import shlex
 import subprocess
+import tempfile
 import re
 from pathlib import Path
 from typing import Optional, Tuple
@@ -40,23 +42,49 @@ class SSHManager:
             return None, None
 
         try:
-            cmd = [
-                "ssh-keygen",
-                "-t",
-                key_type,
-                "-C",
-                email,
-                "-f",
-                str(private_key_path),
-                "-N",
-                passphrase if passphrase else "",  # Passphrase or empty string
-            ]
-
-            subprocess.run(
-                cmd,
-                check=True,
-                capture_output=True,
-            )
+            if passphrase:
+                # Use SSH_ASKPASS so the passphrase is never exposed in the process list
+                fd, askpass_path = tempfile.mkstemp(suffix=".sh")
+                try:
+                    with os.fdopen(fd, "w") as f:
+                        f.write(f"#!/bin/sh\nprintf '%s' {shlex.quote(passphrase)}\n")
+                    os.chmod(askpass_path, 0o700)
+                    env = os.environ.copy()
+                    env["SSH_ASKPASS"] = askpass_path
+                    env["SSH_ASKPASS_REQUIRE"] = "force"  # OpenSSH 8.4+
+                    subprocess.run(
+                        [
+                            "ssh-keygen",
+                            "-t",
+                            key_type,
+                            "-C",
+                            email,
+                            "-f",
+                            str(private_key_path),
+                        ],
+                        check=True,
+                        capture_output=True,
+                        env=env,
+                        stdin=subprocess.DEVNULL,
+                    )
+                finally:
+                    os.unlink(askpass_path)
+            else:
+                subprocess.run(
+                    [
+                        "ssh-keygen",
+                        "-t",
+                        key_type,
+                        "-C",
+                        email,
+                        "-f",
+                        str(private_key_path),
+                        "-N",
+                        "",
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
 
             return str(private_key_path), str(public_key_path)
         except subprocess.CalledProcessError:
@@ -133,26 +161,6 @@ class SSHManager:
         except FileNotFoundError:
             return False
 
-    def start_ssh_agent(self) -> tuple[bool, Optional[str]]:
-        """Start SSH agent and return commands to eval in shell.
-
-        Returns:
-            Tuple of (success, commands_to_eval). If agent already running, returns (True, None)
-        """
-        # Check if agent is already running
-        if self.is_ssh_agent_running():
-            return True, None
-
-        try:
-            result = subprocess.run(
-                ["ssh-agent", "-s"], capture_output=True, text=True, check=True
-            )
-            # Return the commands that need to be evaluated in the shell
-            commands = result.stdout.strip()
-            return True, commands
-        except (subprocess.CalledProcessError, AttributeError, FileNotFoundError):
-            return False, None
-
     def kill_ssh_agent(self) -> bool:
         """Kill SSH agent.
 
@@ -185,7 +193,7 @@ class SSHManager:
         except FileNotFoundError:
             return False
 
-    def add_key_to_agent(self, private_key_path: str) -> tuple[bool, Optional[str]]:
+    def add_key_to_agent(self, private_key_path: str) -> Tuple[bool, Optional[str]]:
         """Add SSH key to agent.
 
         Args:
