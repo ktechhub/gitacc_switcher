@@ -2,7 +2,7 @@
 
 import subprocess
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from gitacc_switcher.config_manager import ConfigManager
 
 SAMPLE_GITACC = (
