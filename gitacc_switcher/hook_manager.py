@@ -161,8 +161,8 @@ exit 0
                         "To use gitacc account validation, merge it manually or remove the existing hook.",
                     )
                     return False
-            except Exception:
-                pass
+            except Exception as e:
+                echo_color("y", f"Warning: could not read existing hook at {hook_file}: {e}")
 
         try:
             with open(hook_file, "w") as f:
