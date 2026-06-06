@@ -1,6 +1,6 @@
 """Tests for shell autocomplete helpers."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from gitacc_switcher.completion import get_account_names
 
 
