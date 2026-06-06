@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.1...gitacc-switcher-v1.0.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* correct GitHub repo URL in README ([#15](https://github.com/ktechhub/gitacc_switcher/issues/15)) ([2765a65](https://github.com/ktechhub/gitacc_switcher/commit/2765a652cfad97ea7330aef7d4e41ce31947f123))
+* correct GitHub repo URL in README (underscore not hyphen) ([74ef1f1](https://github.com/ktechhub/gitacc_switcher/commit/74ef1f159a02f50141aea0fed3cabfe7c1e05e44))
+
 ## [1.0.1](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.0...gitacc-switcher-v1.0.1) (2026-06-06)
 
 
