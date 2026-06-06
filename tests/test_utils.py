@@ -1,6 +1,5 @@
 """Tests for utility functions."""
 
-import pytest
 from unittest.mock import patch
 from gitacc_switcher.utils import (
     echo_color,
