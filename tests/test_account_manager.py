@@ -1,7 +1,6 @@
 """Tests for AccountManager — orchestration of account operations."""
 
 import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from gitacc_switcher.account_manager import AccountManager
 
