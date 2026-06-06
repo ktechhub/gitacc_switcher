@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.1](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.0...gitacc-switcher-v1.0.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* move publish into release-please workflow to avoid GITHUB_TOKEN cross-trigger limitation ([4110bde](https://github.com/ktechhub/gitacc_switcher/commit/4110bdeb52d65339ae67290877c09d13bf8bcde4))
+* use PAT in release-please so releases trigger publish workflow ([83b4d24](https://github.com/ktechhub/gitacc_switcher/commit/83b4d243dac2ca0769d13d9a883a5287fc53fe6a))
+* use PAT in release-please so releases trigger publish workflow ([#12](https://github.com/ktechhub/gitacc_switcher/issues/12)) ([8135bc8](https://github.com/ktechhub/gitacc_switcher/commit/8135bc89a02ddd321e3cf9203da11b11302bebf0))
+* use PAT in release-please so releases trigger publish workflow ([#13](https://github.com/ktechhub/gitacc_switcher/issues/13)) ([a3daebe](https://github.com/ktechhub/gitacc_switcher/commit/a3daebebde0b1faa20087c0dc600460d86dce5cc))
+
 ## [1.0.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v0.3.0...gitacc-switcher-v1.0.0) (2026-06-06)
 
 
