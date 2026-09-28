@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.3](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.2...gitacc-switcher-v1.0.3) (2026-09-28)
+
+
+### Bug Fixes
+
+* correct repository URL and add agent/contributor docs ([#21](https://github.com/ktechhub/gitacc_switcher/issues/21)) ([104f14b](https://github.com/ktechhub/gitacc_switcher/commit/104f14b4e985db0e239d37eb9451681aedcb8f2d))
+* correct repository URL to use underscore consistently ([5e33d09](https://github.com/ktechhub/gitacc_switcher/commit/5e33d0987a5c4aebf27573b3b88cd1691ef133c1))
+
+
+### Documentation
+
+* add CLAUDE.md, agent-backlog.md, and clarify commit/branch conventions ([4535c01](https://github.com/ktechhub/gitacc_switcher/commit/4535c010f8cd76da3fcce78a4e7655cd16e0b785))
+
 ## [1.0.2](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.1...gitacc-switcher-v1.0.2) (2026-06-06)
 
 
