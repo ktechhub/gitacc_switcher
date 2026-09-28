@@ -43,6 +43,10 @@ black gitacc_switcher/ tests/        # format (CI checks this — run before ope
   (`.github/dependabot.yml`) — don't open PRs that just bump a dependency, that's redundant.
 - **Tests required**: every change needs a test. For a bug fix, the test must fail before the fix
   and pass after — never claim a bug exists without a reproducing test.
+- **No AI attribution.** Never add a `Co-Authored-By: Claude …` trailer to a commit, never add
+  "Generated with Claude Code" (or any mention of Claude/Anthropic/an AI tool) to a commit message
+  or PR description, and never include a `claude.ai/code/session_…` link. This applies to every
+  commit and PR this repo receives, including from the automated weekly routine below.
 
 ## Security-sensitive files — extra care required
 

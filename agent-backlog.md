@@ -311,3 +311,43 @@ onto a consistent setup doesn't require verbally explaining the conventions.
 
 **Done looks like:** a template file example in the repo (e.g. `examples/team-template.ini`),
 `--template` flag, tests for template application.
+
+---
+
+## 15. Switch PyPI publishing to Trusted Publishing (OIDC) instead of an API token
+
+**Status:** Open
+
+**What:** `.github/workflows/release-please.yaml`'s publish step currently authenticates to PyPI
+with a long-lived API token (`PYPI_API_TOKEN` secret passed as `password:` to
+`pypa/gh-action-pypi-publish`). Switch it to PyPI's Trusted Publishing: add
+`permissions: {id-token: write, contents: read}` to the publish job, remove the `password:` input
+entirely, and keep (or add) `attestations: true` — it's currently set but silently ignored because
+a password is also present, which disables Trusted Publishing outright (this showed up as a warning
+in a real run: "an explicit password was also set, disabling Trusted Publishing").
+
+**Why:** Same idea as OIDC for AWS/ECR (a short-lived token exchanged via a trust relationship
+instead of a stored long-lived credential) — no static PyPI token sitting in GitHub secrets that
+could leak or need rotating.
+
+**⚠️ This item has a hard external prerequisite the routine cannot do itself:** a PyPI *project
+owner* must first register this exact workflow as a Trusted Publisher at
+`https://pypi.org/manage/project/gitacc-switcher/settings/publishing/?provider=github&owner=ktechhub&repository=gitacc_switcher&workflow_filename=release-please.yaml`
+(pre-filled link) — this needs a human logged into pypi.org, the routine has no way to do this part.
+**If the workflow is changed to drop the password before that registration exists, the very next
+release's publish step will fail** (there is no fallback once the password is removed — password
+presence and Trusted Publishing are mutually exclusive, not layered). Because of this:
+
+- The routine should open the PR with the workflow change as normal, but the PR description must
+  prominently state, at the very top, that **a human must confirm the PyPI Trusted Publisher is
+  registered before merging this**, and link the exact registration URL above.
+- Do not delete the `PYPI_API_TOKEN` secret reference from the repo/workflow as part of this PR —
+  leave that as a manual follow-up for the human to do once they've confirmed a release has
+  published successfully via OIDC, so there's an easy revert path if something's misconfigured.
+
+**Files likely involved:** `.github/workflows/release-please.yaml` only — no application code.
+
+**Done looks like:** the publish job has `id-token: write` permission and no `password:` input,
+`attestations: true` actually takes effect, PR description leads with the human-action-required
+warning and the registration link, and the PR is **not** self-merged or assumed safe to merge
+without that confirmation.
