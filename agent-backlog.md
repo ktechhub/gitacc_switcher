@@ -35,7 +35,7 @@ consumes, it doesn't add.
 
 ## 1. Per-repo (local) config override
 
-**Status:** Open
+**Status:** Claimed (PR: https://github.com/ktechhub/gitacc_switcher/pull/23)
 
 **What:** Add a way to set the git identity for just the current repo (`git config` local scope)
 instead of always writing to global scope. Something like `gitacc switch <account> --local`, or a
