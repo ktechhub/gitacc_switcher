@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.4](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.3...gitacc-switcher-v1.0.4) (2026-09-28)
+
+
+### Documentation
+
+* forbid AI attribution and add Trusted Publishing backlog item ([cf10e90](https://github.com/ktechhub/gitacc_switcher/commit/cf10e90038234d0f081a5d6987bb51991b3e4b56))
+* forbid AI attribution and add Trusted Publishing backlog item ([#24](https://github.com/ktechhub/gitacc_switcher/issues/24)) ([0f465ba](https://github.com/ktechhub/gitacc_switcher/commit/0f465ba437ef4ae4162f6c8b9672ae880034f7d8))
+
 ## [1.0.3](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.2...gitacc-switcher-v1.0.3) (2026-09-28)
 
 
