@@ -185,6 +185,8 @@ gitacc --version
 
 See [CHANGELOG.md](CHANGELOG.md) for a full history of changes.
 
+Versions and the changelog are generated automatically by [Release Please](https://github.com/googleapis/release-please) from Conventional Commit PR titles on `main` — `feat:` bumps minor, everything else bumps patch, and `!` after the type (e.g. `feat!:`) bumps major. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full commit/branch convention.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commit conventions, and the PR process.
