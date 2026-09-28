@@ -37,6 +37,15 @@ class TestParserCommands:
         args = cli.parser.parse_args(["switch", "mywork"])
         assert args.command == "switch"
         assert args.account_name == "mywork"
+        assert args.local is False
+
+    def test_switch_local_flag(self, cli):
+        args = cli.parser.parse_args(["switch", "mywork", "--local"])
+        assert args.local is True
+
+    def test_switch_local_short_flag(self, cli):
+        args = cli.parser.parse_args(["switch", "mywork", "-l"])
+        assert args.local is True
 
     def test_remove_with_account(self, cli):
         args = cli.parser.parse_args(["remove", "mywork"])
@@ -103,11 +112,20 @@ class TestHandlers:
 
     def test_handle_switch_success(self, cli):
         cli.account_manager.switch_account.return_value = True
-        assert cli._handle_switch(argparse.Namespace(account_name="work")) == 0
+        args = argparse.Namespace(account_name="work", local=False)
+        assert cli._handle_switch(args) == 0
+        cli.account_manager.switch_account.assert_called_once_with("work", local=False)
 
     def test_handle_switch_failure(self, cli):
         cli.account_manager.switch_account.return_value = False
-        assert cli._handle_switch(argparse.Namespace(account_name="work")) == 1
+        args = argparse.Namespace(account_name="work", local=False)
+        assert cli._handle_switch(args) == 1
+
+    def test_handle_switch_local(self, cli):
+        cli.account_manager.switch_account.return_value = True
+        args = argparse.Namespace(account_name="work", local=True)
+        assert cli._handle_switch(args) == 0
+        cli.account_manager.switch_account.assert_called_once_with("work", local=True)
 
     def test_handle_remove_success(self, cli):
         cli.account_manager.remove_account.return_value = True

@@ -181,6 +181,43 @@ class TestSetGitConfig:
             assert config.set_git_config("Test", "test@test.com") is False
 
 
+class TestSetGitConfigLocal:
+    def test_calls_git_config_without_global(self, config, tmp_path):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            result = config.set_git_config_local("Test User", "test@test.com", tmp_path)
+        assert result is True
+        assert mock_run.call_count == 3  # is_git_repo check + name + email
+        for call in mock_run.call_args_list:
+            assert "--global" not in call.args[0]
+
+    def test_uses_repo_path_as_cwd(self, config, tmp_path):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            config.set_git_config_local("Test User", "test@test.com", tmp_path)
+        for call in mock_run.call_args_list:
+            assert call.kwargs["cwd"] == tmp_path
+
+    def test_returns_false_when_not_a_git_repo(self, config, tmp_path):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(128, "git")
+        ):
+            assert (
+                config.set_git_config_local("Test", "test@test.com", tmp_path) is False
+            )
+
+    def test_returns_false_on_git_config_error(self, config, tmp_path):
+        def side_effect(cmd, **kwargs):
+            if cmd == ["git", "rev-parse", "--git-dir"]:
+                return MagicMock(returncode=0)
+            raise subprocess.CalledProcessError(1, "git")
+
+        with patch("subprocess.run", side_effect=side_effect):
+            assert (
+                config.set_git_config_local("Test", "test@test.com", tmp_path) is False
+            )
+
+
 class TestGetCurrentGitConfig:
     def test_returns_name_and_email_keys(self, config):
         with patch("subprocess.run") as mock_run:

@@ -68,7 +68,7 @@ gitacc add
 gitacc add --type ed25519
 ```
 
-### `gitacc switch <account>` / `gitacc <account>`
+### `gitacc switch <account> [--local]` / `gitacc <account>`
 
 Switch to a registered account. Clears all keys from the SSH agent, loads only this account's key, and sets `git config --global user.name/email`.
 
@@ -78,6 +78,13 @@ gitacc mywork          # shorthand
 ```
 
 > The SSH agent must already be running (`eval $(ssh-agent)`). If it isn't, gitacc will tell you.
+
+Use `--local`/`-l` to set the identity for only the current repository (local `git config`) instead of overwriting the global default. Must be run from inside a Git repository.
+
+```bash
+cd ~/projects/work-repo
+gitacc switch mywork --local
+```
 
 ### `gitacc list`
 

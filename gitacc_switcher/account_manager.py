@@ -156,11 +156,20 @@ class AccountManager:
         echo_color("g", f'Account "{account_name}" removed successfully!')
         return True
 
-    def switch_account(self, account_name: str) -> bool:
+    def switch_account(
+        self,
+        account_name: str,
+        local: bool = False,
+        repo_path: Optional[Path] = None,
+    ) -> bool:
         """Switch to a Git account.
 
         Args:
             account_name: Account name to switch to
+            local: If True, set the git identity for only the current repo
+                (local git config) instead of the global config
+            repo_path: Path to repository (default: current directory);
+                only used when local is True
 
         Returns:
             True if successful, False otherwise
@@ -169,6 +178,10 @@ class AccountManager:
         account_info = self.config_manager.get_account(account_name)
         if not account_info:
             echo_color("r", "Wrong: account name!!")
+            return False
+
+        if local and not self.config_manager.is_git_repo(repo_path):
+            echo_color("r", "Not a Git repository! Cannot use --local outside a repo.")
             return False
 
         # Check if SSH agent is already running
@@ -218,11 +231,20 @@ class AccountManager:
         # Set Git config
         name = account_info.get("name")
         email = account_info.get("email")
-        if not self.config_manager.set_git_config(name, email):
-            echo_color("r", "Failed to set Git config!")
-            return False
+        if local:
+            if not self.config_manager.set_git_config_local(name, email, repo_path):
+                echo_color("r", "Failed to set local Git config!")
+                return False
+            echo_color(
+                "g",
+                f'Switched to account "{account_name}" successfully (local to this repo)!',
+            )
+        else:
+            if not self.config_manager.set_git_config(name, email):
+                echo_color("r", "Failed to set Git config!")
+                return False
+            echo_color("g", f'Switched to account "{account_name}" successfully!')
 
-        echo_color("g", f'Switched to account "{account_name}" successfully!')
         return True
 
     def logout(self) -> bool:
