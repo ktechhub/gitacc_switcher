@@ -15,7 +15,7 @@ setup(
     long_description_content_type="text/markdown",
     author="ktechhub",
     author_email="mm@ktechhub.com",
-    url="https://github.com/ktechhub/gitacc-switcher",
+    url="https://github.com/ktechhub/gitacc_switcher",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -42,7 +42,7 @@ setup(
     },
     keywords="git ssh account switcher multiple accounts",
     project_urls={
-        "Bug Reports": "https://github.com/ktechhub/gitacc-switcher/issues",
-        "Source": "https://github.com/ktechhub/gitacc-switcher",
+        "Bug Reports": "https://github.com/ktechhub/gitacc_switcher/issues",
+        "Source": "https://github.com/ktechhub/gitacc_switcher",
     },
 )
