@@ -103,6 +103,45 @@ class TestSwitchAccount:
             manager.switch_account("work")
         manager.ssh_manager.clear_all_keys.assert_called_once()
 
+    def test_local_fails_when_not_a_git_repo(self, manager):
+        manager.config_manager.get_account.return_value = WORK_ACCOUNT
+        manager.config_manager.is_git_repo.return_value = False
+        assert manager.switch_account("work", local=True) is False
+        manager.config_manager.set_git_config_local.assert_not_called()
+
+    def test_local_sets_local_git_config(self, manager, tmp_path):
+        key = tmp_path / "id_rsa_work"
+        key.write_text("key")
+        account = {**WORK_ACCOUNT, "private_key": str(key)}
+        manager.config_manager.get_account.return_value = account
+        manager.config_manager.is_git_repo.return_value = True
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.ssh_manager.clear_all_keys.return_value = True
+        manager.ssh_manager.add_key_to_agent.return_value = (True, None)
+        manager.config_manager.set_git_config_local.return_value = True
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="1 key\n")
+            result = manager.switch_account("work", local=True)
+        assert result is True
+        manager.config_manager.set_git_config_local.assert_called_once_with(
+            "Work User", "work@company.com"
+        )
+        manager.config_manager.set_git_config.assert_not_called()
+
+    def test_global_switch_does_not_check_git_repo(self, manager, tmp_path):
+        key = tmp_path / "id_rsa_work"
+        key.write_text("key")
+        account = {**WORK_ACCOUNT, "private_key": str(key)}
+        manager.config_manager.get_account.return_value = account
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.ssh_manager.clear_all_keys.return_value = True
+        manager.ssh_manager.add_key_to_agent.return_value = (True, None)
+        manager.config_manager.set_git_config.return_value = True
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="1 key\n")
+            manager.switch_account("work")
+        manager.config_manager.is_git_repo.assert_not_called()
+
 
 class TestLogout:
     def test_kills_agent_when_running(self, manager):

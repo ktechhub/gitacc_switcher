@@ -44,6 +44,36 @@ class ConfigManager:
         except subprocess.CalledProcessError:
             return False
 
+    def set_git_config_local(
+        self, name: str, email: str, repo_path: Optional[Path] = None
+    ) -> bool:
+        """Set Git local (repository-scoped) user.name and user.email.
+
+        Args:
+            name: Git user name
+            email: Git user email
+            repo_path: Path to repository (default: current directory)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            subprocess.run(
+                ["git", "config", "user.name", name],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.email", email],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     def unset_git_config(self) -> bool:
         """Unset Git global user.name and user.email.
 
