@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.4...gitacc-switcher-v1.1.0) (2026-10-03)
+
+
+### Features
+
+* add --local flag to set git identity for current repo only ([fbfdfc5](https://github.com/ktechhub/gitacc_switcher/commit/fbfdfc58e471708bb7e05525755448953130947b))
+* add --local flag to set git identity for current repo only ([#26](https://github.com/ktechhub/gitacc_switcher/issues/26)) ([6705c76](https://github.com/ktechhub/gitacc_switcher/commit/6705c76dfedd1e389d132b75030655aa82485d82))
+
+
+### Documentation
+
+* mark backlog item 1 as claimed ([18c3409](https://github.com/ktechhub/gitacc_switcher/commit/18c3409a385eeb6fe00791bbfa89732cd790d260))
+
 ## [1.0.4](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.3...gitacc-switcher-v1.0.4) (2026-09-28)
 
 
