@@ -68,6 +68,7 @@ Examples:
   gitacc add --type ed25519     Add account with specific SSH key type
                                 Available types: {key_types}
   gitacc switch myaccount       Switch to an account
+  gitacc switch myaccount -l    Switch to an account for this repo only
   gitacc myaccount              Switch to an account (short form)
   gitacc remove myaccount       Remove an account
   gitacc list                   List all registered accounts
@@ -120,6 +121,12 @@ Examples:
         account_arg = parser.add_argument(
             "account_name",
             help="Account name to switch to",
+        )
+        parser.add_argument(
+            "-l",
+            "--local",
+            action="store_true",
+            help="Set the identity for this repository only, instead of globally",
         )
         if argcomplete:
             account_arg.completer = lambda **kwargs: get_account_names()
@@ -321,7 +328,9 @@ Examples:
 
     def _handle_switch(self, args: argparse.Namespace) -> int:
         """Handle the 'switch' command."""
-        success = self.account_manager.switch_account(args.account_name)
+        success = self.account_manager.switch_account(
+            args.account_name, local=getattr(args, "local", False)
+        )
         return 0 if success else 1
 
     def _handle_list(self, args: argparse.Namespace) -> int:

@@ -181,6 +181,30 @@ class TestSetGitConfig:
             assert config.set_git_config("Test", "test@test.com") is False
 
 
+class TestSetGitConfigLocal:
+    def test_calls_git_config_without_global_flag(self, config):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            result = config.set_git_config_local("Test User", "test@test.com")
+        assert result is True
+        assert mock_run.call_count == 2
+        for call in mock_run.call_args_list:
+            assert "--global" not in call.args[0]
+
+    def test_passes_repo_path_as_cwd(self, config, tmp_path):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            config.set_git_config_local("Test User", "test@test.com", tmp_path)
+        for call in mock_run.call_args_list:
+            assert call.kwargs["cwd"] == tmp_path
+
+    def test_returns_false_on_error(self, config):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")
+        ):
+            assert config.set_git_config_local("Test", "test@test.com") is False
+
+
 class TestGetCurrentGitConfig:
     def test_returns_name_and_email_keys(self, config):
         with patch("subprocess.run") as mock_run:
