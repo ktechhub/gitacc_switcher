@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.1.0...gitacc-switcher-v1.1.1) (2026-10-03)
+
+
+### Documentation
+
+* track agent backlog as GitHub issues ([77c84fc](https://github.com/ktechhub/gitacc_switcher/commit/77c84fc40850c985009248f93e3509893b638fb7))
+* track agent backlog as GitHub issues ([#42](https://github.com/ktechhub/gitacc_switcher/issues/42)) ([1afaf31](https://github.com/ktechhub/gitacc_switcher/commit/1afaf314cf71063661bb6b55bac59aef22949b24))
+
 ## [1.1.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.0.4...gitacc-switcher-v1.1.0) (2026-10-03)
 
 
