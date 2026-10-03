@@ -59,11 +59,29 @@ the PR description, and treated as needing closer human review than the rest of 
 
 ## Automated weekly maintenance routine
 
-This repo has a scheduled Claude routine that opens one PR per week, sourced from `agent-backlog.md`
-in this repo's root — it picks the next `Open` item, implements it, opens a PR, and marks the item
-`Claimed` with the PR link. It never invents work outside that file. If you're extending or
-debugging that routine, `agent-backlog.md`'s own header documents its exact operating rules (pick
-top-down, tests required, never freelance beyond the item's written scope, never autonomously
-restructure the three security-sensitive files beyond what an item explicitly describes).
+This repo has a scheduled Claude routine that opens one PR per week. Its work comes from GitHub
+issues labelled `agent-backlog` and `status:available`, not from a file in the repo.
 
-Humans add new ideas to `agent-backlog.md`; the routine only consumes it, never adds to it.
+**Picking work:** take the oldest open issue with both labels:
+
+```bash
+gh issue list --label agent-backlog --label status:available --state open \
+  --json number,title,createdAt --jq 'sort_by(.createdAt) | .[0]'
+```
+
+**Operating rules:**
+
+- Pick the first (oldest) issue. Don't skip ahead for an easier one.
+- When claiming, switch the label from `status:available` to `status:in-progress` and comment with
+  the PR link, in the same PR that does the work. When the PR merges, switch to `status:completed`
+  and close the issue.
+- Stay inside the issue's "Done looks like" scope. If something seems worth doing but isn't written
+  there, open a new issue for a human to prioritise instead of doing it.
+- Never add or reprioritise backlog issues. Humans add them; the routine only consumes them.
+- Every change needs tests. For a bug fix, the test must fail before the fix and pass after.
+- Never autonomously restructure `ssh_manager.py`, `config_manager.py`, or `hook_manager.py` beyond
+  what an issue explicitly describes. Call that out in the PR description.
+- PR title is `type: description` (Conventional Commits). Add `!` for a breaking change.
+- Issues with an external prerequisite the routine cannot do itself (for example, a PyPI
+  registration) must say so at the top of the PR description, and the PR must not be treated as safe
+  to merge until a human confirms it.
