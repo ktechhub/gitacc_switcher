@@ -90,6 +90,59 @@ class TestSwitchAccount:
             "Work User", "work@company.com"
         )
 
+    def test_unsigned_account_unsets_signing_config(self, manager, tmp_path):
+        key = tmp_path / "id_rsa_work"
+        key.write_text("key")
+        account = {**WORK_ACCOUNT, "private_key": str(key), "sign": "false"}
+        manager.config_manager.get_account.return_value = account
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.ssh_manager.clear_all_keys.return_value = True
+        manager.ssh_manager.add_key_to_agent.return_value = (True, None)
+        manager.config_manager.set_git_config.return_value = True
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="1 key\n")
+            result = manager.switch_account("work")
+        assert result is True
+        manager.config_manager.unset_git_signing_config.assert_called_once()
+        manager.config_manager.set_git_signing_config.assert_not_called()
+
+    def test_signed_account_sets_signing_config(self, manager, tmp_path):
+        key = tmp_path / "id_rsa_work"
+        key.write_text("key")
+        account = {**WORK_ACCOUNT, "private_key": str(key), "sign": "true"}
+        manager.config_manager.get_account.return_value = account
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.ssh_manager.clear_all_keys.return_value = True
+        manager.ssh_manager.add_key_to_agent.return_value = (True, None)
+        manager.config_manager.set_git_config.return_value = True
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="1 key\n")
+            result = manager.switch_account("work")
+        assert result is True
+        manager.config_manager.set_git_signing_config.assert_called_once_with(
+            "/home/user/.ssh/id_rsa_work.pub"
+        )
+        manager.config_manager.unset_git_signing_config.assert_not_called()
+
+    def test_signed_account_local_sets_local_signing_config(self, manager, tmp_path):
+        key = tmp_path / "id_rsa_work"
+        key.write_text("key")
+        account = {**WORK_ACCOUNT, "private_key": str(key), "sign": "true"}
+        manager.config_manager.get_account.return_value = account
+        manager.config_manager.is_git_repo.return_value = True
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.ssh_manager.clear_all_keys.return_value = True
+        manager.ssh_manager.add_key_to_agent.return_value = (True, None)
+        manager.config_manager.set_git_config_local.return_value = True
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="1 key\n")
+            result = manager.switch_account("work", local=True)
+        assert result is True
+        manager.config_manager.set_git_signing_config_local.assert_called_once_with(
+            "/home/user/.ssh/id_rsa_work.pub"
+        )
+        manager.config_manager.set_git_signing_config.assert_not_called()
+
     def test_clears_all_keys_before_adding(self, manager, tmp_path):
         key = tmp_path / "id_rsa_work"
         key.write_text("key")
@@ -159,6 +212,11 @@ class TestLogout:
         manager.logout()
         manager.config_manager.unset_git_config.assert_called_once()
 
+    def test_unsets_signing_config(self, manager):
+        manager.ssh_manager.is_ssh_agent_running.return_value = False
+        manager.logout()
+        manager.config_manager.unset_git_signing_config.assert_called_once()
+
 
 class TestUpdateAccount:
     def test_update_name(self, manager):
@@ -215,6 +273,58 @@ class TestUpdateAccount:
     def test_returns_false_for_missing_account(self, manager):
         manager.config_manager.get_account.return_value = None
         assert manager.update_account("nobody", "name", "email") is False
+
+    def test_enables_signing(self, manager):
+        manager.config_manager.get_account.return_value = {
+            "name": "Work User",
+            "email": "work@co.com",
+            "sign": "false",
+        }
+        manager.config_manager.update_account_field.return_value = True
+        result = manager.update_account(
+            "work", new_git_name="Work User", new_email="work@co.com", new_sign=True
+        )
+        assert result is True
+        manager.config_manager.update_account_field.assert_called_once_with(
+            "work", "sign", "true"
+        )
+
+    def test_disables_signing(self, manager):
+        manager.config_manager.get_account.return_value = {
+            "name": "Work User",
+            "email": "work@co.com",
+            "sign": "true",
+        }
+        manager.config_manager.update_account_field.return_value = True
+        result = manager.update_account(
+            "work", new_git_name="Work User", new_email="work@co.com", new_sign=False
+        )
+        assert result is True
+        manager.config_manager.update_account_field.assert_called_once_with(
+            "work", "sign", "false"
+        )
+
+    def test_no_sign_change_does_not_write(self, manager):
+        manager.config_manager.get_account.return_value = {
+            "name": "Work User",
+            "email": "work@co.com",
+            "sign": "true",
+        }
+        manager.update_account(
+            "work", new_git_name="Work User", new_email="work@co.com", new_sign=True
+        )
+        manager.config_manager.update_account_field.assert_not_called()
+
+    def test_sign_none_leaves_setting_unchanged(self, manager):
+        manager.config_manager.get_account.return_value = {
+            "name": "Work User",
+            "email": "work@co.com",
+            "sign": "true",
+        }
+        manager.update_account(
+            "work", new_git_name="Work User", new_email="work@co.com", new_sign=None
+        )
+        manager.config_manager.update_account_field.assert_not_called()
 
 
 class TestRemoveAccount:
@@ -294,3 +404,25 @@ class TestAddAccount:
             "gitacc_switcher.account_manager.ask_yes_no", return_value=True
         ), patch("getpass.getpass", side_effect=["pass1", "pass2"]):
             assert manager.add_account() is False
+
+    def test_sign_flag_passed_to_config_manager(self, manager, tmp_path):
+        self._setup_add(manager, tmp_path)
+        inputs = ["mywork", "My Work", "work@co.com"]
+        with patch("builtins.input", side_effect=inputs), patch(
+            "gitacc_switcher.account_manager.ask_yes_no", return_value=False
+        ):
+            result = manager.add_account(sign=True)
+        assert result is True
+        _, kwargs = manager.config_manager.add_account.call_args
+        assert kwargs["sign"] is True
+
+    def test_sign_defaults_to_false(self, manager, tmp_path):
+        self._setup_add(manager, tmp_path)
+        inputs = ["mywork", "My Work", "work@co.com"]
+        with patch("builtins.input", side_effect=inputs), patch(
+            "gitacc_switcher.account_manager.ask_yes_no", return_value=False
+        ):
+            result = manager.add_account()
+        assert result is True
+        _, kwargs = manager.config_manager.add_account.call_args
+        assert kwargs["sign"] is False

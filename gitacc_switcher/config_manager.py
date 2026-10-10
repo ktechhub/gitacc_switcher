@@ -93,6 +93,122 @@ class ConfigManager:
         except subprocess.CalledProcessError:
             return False
 
+    def set_git_signing_config(self, signing_key: str) -> bool:
+        """Set Git global SSH commit signing config using an account's SSH key.
+
+        Args:
+            signing_key: Path to the SSH public key to sign commits with
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            subprocess.run(
+                ["git", "config", "--global", "user.signingkey", signing_key],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "--global", "gpg.format", "ssh"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "--global", "commit.gpgsign", "true"],
+                check=True,
+                capture_output=True,
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    def unset_git_signing_config(self) -> bool:
+        """Unset Git global SSH commit signing config.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            subprocess.run(
+                ["git", "config", "--global", "--unset", "user.signingkey"],
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "--global", "--unset", "gpg.format"],
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "--global", "--unset", "commit.gpgsign"],
+                capture_output=True,
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    def set_git_signing_config_local(
+        self, signing_key: str, repo_path: Optional[Path] = None
+    ) -> bool:
+        """Set Git local (repository-scoped) SSH commit signing config.
+
+        Args:
+            signing_key: Path to the SSH public key to sign commits with
+            repo_path: Path to repository (default: current directory)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            subprocess.run(
+                ["git", "config", "user.signingkey", signing_key],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "gpg.format", "ssh"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "commit.gpgsign", "true"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    def unset_git_signing_config_local(self, repo_path: Optional[Path] = None) -> bool:
+        """Unset Git local (repository-scoped) SSH commit signing config.
+
+        Args:
+            repo_path: Path to repository (default: current directory)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            subprocess.run(
+                ["git", "config", "--unset", "user.signingkey"],
+                cwd=repo_path,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "--unset", "gpg.format"],
+                cwd=repo_path,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "--unset", "commit.gpgsign"],
+                cwd=repo_path,
+                capture_output=True,
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     def get_current_git_config(self) -> Dict[str, Optional[str]]:
         """Get current Git global config.
 
@@ -187,6 +303,7 @@ class ConfigManager:
         email: str,
         private_key: str,
         public_key: str,
+        sign: bool = False,
     ) -> bool:
         """Add account to .gitacc file.
 
@@ -196,6 +313,8 @@ class ConfigManager:
             email: Git user email
             private_key: Path to private SSH key
             public_key: Path to public SSH key
+            sign: Whether to sign commits with this account's SSH key when
+                switched to (sets user.signingkey/gpg.format/commit.gpgsign)
 
         Returns:
             True if successful, False otherwise
@@ -207,6 +326,7 @@ class ConfigManager:
                 f.write(f"\temail = {email}\n")
                 f.write(f"\tprivate_key = {private_key}\n")
                 f.write(f"\tpublic_key = {public_key}\n")
+                f.write(f"\tsign = {'true' if sign else 'false'}\n")
             return True
         except Exception:
             return False

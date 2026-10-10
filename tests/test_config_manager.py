@@ -109,6 +109,14 @@ class TestAddAccount:
         config.add_account("personal", "Personal", "p@p.com", "/k2", "/k2.pub")
         assert len(config.read_accounts()) == 2
 
+    def test_defaults_sign_to_false(self, config):
+        config.add_account("test", "Test User", "t@t.com", "/k", "/k.pub")
+        assert config.get_account("test")["sign"] == "false"
+
+    def test_persists_sign_true_when_enabled(self, config):
+        config.add_account("test", "Test User", "t@t.com", "/k", "/k.pub", sign=True)
+        assert config.get_account("test")["sign"] == "true"
+
 
 class TestRemoveAccount:
     def test_removes_account(self, config_with_accounts):
@@ -203,6 +211,91 @@ class TestSetGitConfigLocal:
             "subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")
         ):
             assert config.set_git_config_local("Test", "test@test.com") is False
+
+
+class TestSetGitSigningConfig:
+    def test_sets_signingkey_format_and_gpgsign(self, config):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            result = config.set_git_signing_config("/home/user/.ssh/id_rsa.pub")
+        assert result is True
+        assert mock_run.call_count == 3
+        calls = [call.args[0] for call in mock_run.call_args_list]
+        assert [
+            "git",
+            "config",
+            "--global",
+            "user.signingkey",
+            "/home/user/.ssh/id_rsa.pub",
+        ] in calls
+        assert ["git", "config", "--global", "gpg.format", "ssh"] in calls
+        assert ["git", "config", "--global", "commit.gpgsign", "true"] in calls
+
+    def test_returns_false_on_error(self, config):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")
+        ):
+            assert config.set_git_signing_config("/k.pub") is False
+
+
+class TestUnsetGitSigningConfig:
+    def test_unsets_all_signing_keys(self, config):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            result = config.unset_git_signing_config()
+        assert result is True
+        assert mock_run.call_count == 3
+        calls = [call.args[0] for call in mock_run.call_args_list]
+        assert ["git", "config", "--global", "--unset", "user.signingkey"] in calls
+        assert ["git", "config", "--global", "--unset", "gpg.format"] in calls
+        assert ["git", "config", "--global", "--unset", "commit.gpgsign"] in calls
+
+    def test_succeeds_even_when_key_was_unset(self, config):
+        # git config --unset on a missing key returns non-zero, but we don't
+        # pass check=True for unset, so this should not raise/fail.
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=5)
+            assert config.unset_git_signing_config() is True
+
+
+class TestSetGitSigningConfigLocal:
+    def test_calls_git_config_without_global_flag(self, config):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            result = config.set_git_signing_config_local("/k.pub")
+        assert result is True
+        for call in mock_run.call_args_list:
+            assert "--global" not in call.args[0]
+
+    def test_passes_repo_path_as_cwd(self, config, tmp_path):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            config.set_git_signing_config_local("/k.pub", tmp_path)
+        for call in mock_run.call_args_list:
+            assert call.kwargs["cwd"] == tmp_path
+
+    def test_returns_false_on_error(self, config):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")
+        ):
+            assert config.set_git_signing_config_local("/k.pub") is False
+
+
+class TestUnsetGitSigningConfigLocal:
+    def test_calls_git_config_without_global_flag(self, config):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            result = config.unset_git_signing_config_local()
+        assert result is True
+        for call in mock_run.call_args_list:
+            assert "--global" not in call.args[0]
+
+    def test_passes_repo_path_as_cwd(self, config, tmp_path):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            config.unset_git_signing_config_local(tmp_path)
+        for call in mock_run.call_args_list:
+            assert call.kwargs["cwd"] == tmp_path
 
 
 class TestGetCurrentGitConfig:

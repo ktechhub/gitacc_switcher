@@ -18,11 +18,14 @@ class AccountManager:
         self.ssh_manager = SSHManager()
         self.hook_manager = HookManager()
 
-    def add_account(self, key_type: str = "rsa") -> bool:
+    def add_account(self, key_type: str = "rsa", sign: bool = False) -> bool:
         """Add a new Git account.
 
         Args:
             key_type: SSH key type (default: rsa)
+            sign: Opt-in to SSH commit signing with this account's key when
+                switched to (sets user.signingkey, gpg.format=ssh,
+                commit.gpgsign=true)
 
         Returns:
             True if successful, False otherwise
@@ -93,7 +96,7 @@ class AccountManager:
 
         # Add to .gitacc file
         success = self.config_manager.add_account(
-            account_name, git_name, email, private_key, public_key
+            account_name, git_name, email, private_key, public_key, sign=sign
         )
         if not success:
             echo_color("r", "Failed to save account info!")
@@ -233,6 +236,24 @@ class AccountManager:
             echo_color("r", "Failed to set Git config!")
             return False
 
+        # Apply (or clear) this account's SSH commit-signing preference
+        sign_enabled = str(account_info.get("sign", "false")).lower() == "true"
+        public_key = account_info.get("public_key")
+        if local:
+            if sign_enabled and public_key:
+                signing_success = self.config_manager.set_git_signing_config_local(
+                    public_key
+                )
+            else:
+                signing_success = self.config_manager.unset_git_signing_config_local()
+        else:
+            if sign_enabled and public_key:
+                signing_success = self.config_manager.set_git_signing_config(public_key)
+            else:
+                signing_success = self.config_manager.unset_git_signing_config()
+        if not signing_success:
+            echo_color("y", "Warning: Could not update commit-signing config.")
+
         scope = "this repository only" if local else "globally"
         echo_color(
             "g",
@@ -250,6 +271,7 @@ class AccountManager:
             self.ssh_manager.kill_ssh_agent()
 
         self.config_manager.unset_git_config()
+        self.config_manager.unset_git_signing_config()
         echo_color("g", "Logged out successfully!")
         return True
 
@@ -285,13 +307,16 @@ class AccountManager:
         account_name: str,
         new_git_name: Optional[str] = None,
         new_email: Optional[str] = None,
+        new_sign: Optional[bool] = None,
     ) -> bool:
-        """Update the Git name and/or email for an existing account.
+        """Update the Git name, email, and/or commit-signing preference for an
+        existing account.
 
         Args:
             account_name: Account identifier to update
             new_git_name: New Git name (if None, will prompt)
             new_email: New email (if None, will prompt)
+            new_sign: New commit-signing preference (if None, leave unchanged)
 
         Returns:
             True if successful, False otherwise
@@ -339,6 +364,18 @@ class AccountManager:
                 f'Updated email for "{account_name}": {current_email} → {new_email}',
             )
             changed = True
+
+        if new_sign is not None:
+            current_sign = str(account_info.get("sign", "false")).lower() == "true"
+            if new_sign != current_sign:
+                if not self.config_manager.update_account_field(
+                    account_name, "sign", "true" if new_sign else "false"
+                ):
+                    echo_color("r", "Failed to update commit-signing setting!")
+                    return False
+                state = "enabled" if new_sign else "disabled"
+                echo_color("g", f'Commit signing {state} for "{account_name}"')
+                changed = True
 
         if not changed:
             echo_color("y", "No changes made.")
