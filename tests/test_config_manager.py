@@ -164,6 +164,27 @@ class TestUpdateAccountField:
     def test_returns_false_for_missing_account(self, config_with_accounts):
         assert config_with_accounts.update_account_field("nobody", "name", "X") is False
 
+    def test_appends_field_missing_from_section(self, config_with_accounts):
+        # SAMPLE_GITACC accounts have no "sign" field — this reproduces a pre-1.2.0
+        # account whose section was written before that field existed.
+        assert "sign" not in config_with_accounts.get_account("work")
+        assert config_with_accounts.update_account_field("work", "sign", "true") is True
+        assert config_with_accounts.get_account("work")["sign"] == "true"
+
+    def test_appending_missing_field_preserves_other_fields(self, config_with_accounts):
+        config_with_accounts.update_account_field("work", "sign", "true")
+        account = config_with_accounts.get_account("work")
+        assert account["name"] == "Work User"
+        assert account["email"] == "work@company.com"
+        assert account["private_key"] == "/home/user/.ssh/id_rsa_work"
+        assert account["public_key"] == "/home/user/.ssh/id_rsa_work.pub"
+
+    def test_appending_missing_field_does_not_affect_other_account(
+        self, config_with_accounts
+    ):
+        config_with_accounts.update_account_field("work", "sign", "true")
+        assert "sign" not in config_with_accounts.get_account("personal")
+
 
 class TestListAccountNames:
     def test_empty(self, config):
