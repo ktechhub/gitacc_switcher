@@ -67,6 +67,7 @@ Examples:
   gitacc add                    Add a new Git account
   gitacc add --type ed25519     Add account with specific SSH key type
                                 Available types: {key_types}
+  gitacc add --sign             Add account with SSH commit signing enabled
   gitacc switch myaccount       Switch to an account
   gitacc switch myaccount -l    Switch to an account for this repo only
   gitacc myaccount              Switch to an account (short form)
@@ -92,6 +93,13 @@ Examples:
             default="rsa",
             choices=get_ssh_key_types(),
             help="SSH key type (default: rsa). Available: dsa, ecdsa, ecdsa-sk, ed25519, ed25519-sk, rsa",
+        )
+        parser.add_argument(
+            "--sign",
+            dest="sign",
+            action="store_true",
+            help="Sign commits with this account's SSH key when switched to "
+            "(sets user.signingkey, gpg.format=ssh, commit.gpgsign=true)",
         )
         parser.set_defaults(func=self._handle_add)
 
@@ -194,6 +202,22 @@ Examples:
             "--email",
             dest="new_email",
             help="New email address (will prompt if not provided)",
+        )
+        sign_group = parser.add_mutually_exclusive_group()
+        sign_group.add_argument(
+            "--sign",
+            dest="sign",
+            action="store_const",
+            const=True,
+            default=None,
+            help="Enable SSH commit signing for this account",
+        )
+        sign_group.add_argument(
+            "--no-sign",
+            dest="sign",
+            action="store_const",
+            const=False,
+            help="Disable SSH commit signing for this account",
         )
         if argcomplete:
             account_arg.completer = lambda **kwargs: get_account_names()
@@ -318,7 +342,9 @@ Examples:
 
     def _handle_add(self, args: argparse.Namespace) -> int:
         """Handle the 'add' command."""
-        success = self.account_manager.add_account(key_type=args.key_type)
+        success = self.account_manager.add_account(
+            key_type=args.key_type, sign=getattr(args, "sign", False)
+        )
         return 0 if success else 1
 
     def _handle_remove(self, args: argparse.Namespace) -> int:
@@ -383,7 +409,10 @@ Examples:
     def _handle_update(self, args: argparse.Namespace) -> int:
         """Handle the 'update' command."""
         success = self.account_manager.update_account(
-            args.account_name, args.new_git_name, args.new_email
+            args.account_name,
+            args.new_git_name,
+            args.new_email,
+            new_sign=getattr(args, "sign", None),
         )
         return 0 if success else 1
 

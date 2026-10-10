@@ -13,6 +13,7 @@ A Python CLI tool to easily switch between multiple Git SSH accounts. Manage mul
 - Switch between accounts easily — one command, no fuss
 - Generate SSH keys automatically (rsa, ed25519, ecdsa, and more)
 - Optional passphrase support for SSH keys
+- Opt-in SSH commit signing per account
 - Colored terminal output with active account indicator
 - Pre-commit hook to prevent commits with the wrong account
 - Shell autocomplete for bash and zsh
@@ -54,7 +55,7 @@ gitacc verify                 # manual check
 
 ## Commands
 
-### `gitacc add [--type TYPE]`
+### `gitacc add [--type TYPE] [--sign]`
 
 Add a new Git account. Prompts for:
 - Account identifier (used in key filename and as a reference)
@@ -67,7 +68,14 @@ Available key types: `rsa` (default), `ed25519`, `ecdsa`, `ecdsa-sk`, `ed25519-s
 ```bash
 gitacc add
 gitacc add --type ed25519
+gitacc add --sign           # opt in to SSH commit signing for this account
 ```
+
+Pass `--sign` to opt this account into SSH commit signing. When you later `gitacc switch` to it,
+`user.signingkey` is set to the account's public key and `gpg.format=ssh` / `commit.gpgsign=true`
+are enabled (locally too, with `--local`), so every commit made under this identity is signed.
+Switching to an account without `--sign` clears any signing config left by a previous account.
+Toggle it later with `gitacc update <account> --sign` / `--no-sign`.
 
 ### `gitacc switch <account> [--local]` / `gitacc <account>`
 
@@ -106,7 +114,7 @@ gitacc remove mywork
 gitacc remove          # prompts for account name
 ```
 
-### `gitacc update <account> [--name NAME] [--email EMAIL]`
+### `gitacc update <account> [--name NAME] [--email EMAIL] [--sign | --no-sign]`
 
 Update the Git display name and/or email for an existing account. Prompts for any field not provided as a flag.
 
@@ -114,6 +122,8 @@ Update the Git display name and/or email for an existing account. Prompts for an
 gitacc update mywork --name "Jane Doe"
 gitacc update mywork --email "jane@newcompany.com"
 gitacc update mywork   # prompts for both
+gitacc update mywork --sign      # enable SSH commit signing for this account
+gitacc update mywork --no-sign   # disable it
 ```
 
 ### `gitacc init <account>`
@@ -180,6 +190,7 @@ gitacc --version
     email = jane@company.com
     private_key = /home/jane/.ssh/id_ed25519_mywork
     public_key = /home/jane/.ssh/id_ed25519_mywork.pub
+    sign = false
 ```
 
 ## Requirements

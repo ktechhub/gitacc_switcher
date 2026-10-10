@@ -33,6 +33,14 @@ class TestParserCommands:
         with pytest.raises(SystemExit):
             cli.parser.parse_args(["add", "--type", "invalid"])
 
+    def test_add_sign_defaults_to_false(self, cli):
+        args = cli.parser.parse_args(["add"])
+        assert args.sign is False
+
+    def test_add_sign_flag(self, cli):
+        args = cli.parser.parse_args(["add", "--sign"])
+        assert args.sign is True
+
     def test_switch_parses_account(self, cli):
         args = cli.parser.parse_args(["switch", "mywork"])
         assert args.command == "switch"
@@ -73,6 +81,19 @@ class TestParserCommands:
         assert args.account_name == "mywork"
         assert args.new_git_name is None
         assert args.new_email is None
+        assert args.sign is None
+
+    def test_update_sign_flag(self, cli):
+        args = cli.parser.parse_args(["update", "mywork", "--sign"])
+        assert args.sign is True
+
+    def test_update_no_sign_flag(self, cli):
+        args = cli.parser.parse_args(["update", "mywork", "--no-sign"])
+        assert args.sign is False
+
+    def test_update_sign_and_no_sign_mutually_exclusive(self, cli):
+        with pytest.raises(SystemExit):
+            cli.parser.parse_args(["update", "mywork", "--sign", "--no-sign"])
 
     def test_update_with_name_flag(self, cli):
         args = cli.parser.parse_args(["update", "mywork", "--name", "New Name"])
@@ -109,6 +130,13 @@ class TestHandlers:
     def test_handle_add_failure(self, cli):
         cli.account_manager.add_account.return_value = False
         assert cli._handle_add(argparse.Namespace(key_type="rsa")) == 1
+
+    def test_handle_add_passes_sign_flag(self, cli):
+        cli.account_manager.add_account.return_value = True
+        cli._handle_add(argparse.Namespace(key_type="rsa", sign=True))
+        cli.account_manager.add_account.assert_called_once_with(
+            key_type="rsa", sign=True
+        )
 
     def test_handle_switch_success(self, cli):
         cli.account_manager.switch_account.return_value = True
@@ -159,6 +187,16 @@ class TestHandlers:
             account_name="work", new_git_name=None, new_email=None
         )
         assert cli._handle_update(args) == 1
+
+    def test_handle_update_passes_sign_flag(self, cli):
+        cli.account_manager.update_account.return_value = True
+        args = argparse.Namespace(
+            account_name="work", new_git_name=None, new_email=None, sign=True
+        )
+        cli._handle_update(args)
+        cli.account_manager.update_account.assert_called_once_with(
+            "work", None, None, new_sign=True
+        )
 
 
 # ---------------------------------------------------------------------------
