@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.2.0...gitacc-switcher-v1.2.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* append missing field in update_account_field ([7ad3964](https://github.com/ktechhub/gitacc_switcher/commit/7ad396488fb007a85a83baca1465c3ea71da87ab))
+* append missing field in update_account_field ([#47](https://github.com/ktechhub/gitacc_switcher/issues/47)) ([bef4aab](https://github.com/ktechhub/gitacc_switcher/commit/bef4aab0ced3b857bde0201da3e727582d0b4049))
+
 ## [1.2.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.1.1...gitacc-switcher-v1.2.0) (2026-10-10)
 
 
