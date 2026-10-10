@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.1.1...gitacc-switcher-v1.2.0) (2026-10-10)
+
+
+### Features
+
+* add opt-in SSH commit signing per account ([ae24f42](https://github.com/ktechhub/gitacc_switcher/commit/ae24f423107246e5363e11a11e354ea9a8e24c59))
+* add opt-in SSH commit signing per account ([#44](https://github.com/ktechhub/gitacc_switcher/issues/44)) ([d7f8ad1](https://github.com/ktechhub/gitacc_switcher/commit/d7f8ad1e63ea86be4ebc82b5ab9c8c404ccdc892))
+
 ## [1.1.1](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.1.0...gitacc-switcher-v1.1.1) (2026-10-03)
 
 
