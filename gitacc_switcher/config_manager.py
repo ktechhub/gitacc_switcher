@@ -359,22 +359,37 @@ class ConfigManager:
             line = lines[i]
             if re.match(rf"^\s*\[{re.escape(account_name)}\]\s*$", line):
                 in_target_section = True
+                field_written = False
                 new_lines.append(line)
                 i += 1
                 while i < len(lines) and in_target_section:
                     if re.match(r"^\s*\[", lines[i]) and not re.match(
                         rf"^\s*\[{re.escape(account_name)}\]\s*$", lines[i]
                     ):
+                        if not field_written:
+                            # Field never appeared in this section (e.g. an
+                            # account written before this field existed) —
+                            # add it rather than silently leaving it unset.
+                            new_lines.append(f"\t{field} = {new_value}\n")
+                            field_written = True
                         in_target_section = False
                         new_lines.append(lines[i])
                         i += 1
                         break
                     elif re.match(rf"^\s*{re.escape(field)}\s*=", lines[i]):
                         new_lines.append(f"\t{field} = {new_value}\n")
+                        field_written = True
                         i += 1
                     else:
                         new_lines.append(lines[i])
                         i += 1
+                else:
+                    # Loop ended because we reached end of file, not a break —
+                    # the target section is the last one, so append here too.
+                    if in_target_section and not field_written:
+                        new_lines.append(f"\t{field} = {new_value}\n")
+                        field_written = True
+                    in_target_section = False
             else:
                 new_lines.append(line)
                 i += 1
