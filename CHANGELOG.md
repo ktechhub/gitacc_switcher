@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.2.1...gitacc-switcher-v1.3.0) (2026-10-17)
+
+
+### Features
+
+* add gitacc status command ([c1864f5](https://github.com/ktechhub/gitacc_switcher/commit/c1864f5cb9b9544ed055ef9430ed7bdfaf87592a))
+* add gitacc status command ([#49](https://github.com/ktechhub/gitacc_switcher/issues/49)) ([a6d3a05](https://github.com/ktechhub/gitacc_switcher/commit/a6d3a05492b7de29517ef4fd2f80b17c6402fa91))
+
 ## [1.2.1](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.2.0...gitacc-switcher-v1.2.1) (2026-10-10)
 
 
