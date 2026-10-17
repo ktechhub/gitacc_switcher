@@ -45,6 +45,7 @@ class CLI:
         self._add_switch_command(subparsers)
         self._add_list_command(subparsers)
         self._add_logout_command(subparsers)
+        self._add_status_command(subparsers)
         self._add_init_command(subparsers)
         self._add_verify_command(subparsers)
         self._add_update_command(subparsers)
@@ -74,6 +75,7 @@ Examples:
   gitacc remove myaccount       Remove an account
   gitacc list                   List all registered accounts
   gitacc logout                 Logout current account
+  gitacc status                 Show the currently active account
   gitacc init myaccount         Initialize repo with account validation
   gitacc verify                 Verify current account matches repo
   gitacc update myaccount       Update Git name for an account
@@ -157,6 +159,16 @@ Examples:
             description="Logout from the current Git account",
         )
         parser.set_defaults(func=self._handle_logout)
+
+    def _add_status_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'status' command parser."""
+        parser = subparsers.add_parser(
+            "status",
+            help="Show the currently active account",
+            description="Show the current Git identity and SSH agent key, "
+            "and which managed account (if any) matches",
+        )
+        parser.set_defaults(func=self._handle_status)
 
     def _add_init_command(self, subparsers: argparse._SubParsersAction) -> None:
         """Add the 'init' command parser."""
@@ -395,6 +407,35 @@ Examples:
         """Handle the 'logout' command."""
         success = self.account_manager.logout()
         return 0 if success else 1
+
+    def _handle_status(self, args: argparse.Namespace) -> int:
+        """Handle the 'status' command."""
+        status = self.account_manager.get_status()
+        name = status.get("name")
+        email = status.get("email")
+
+        echo_color("g", "Current Git identity:")
+        echo_color("g", f"  Name:  {name or '(not set)'}")
+        echo_color("g", f"  Email: {email or '(not set)'}")
+
+        matched_account = status.get("matched_account")
+        if matched_account:
+            echo_color("g", f'Matched account: "{matched_account}"')
+        else:
+            echo_color("y", "No managed account matches the current Git identity.")
+
+        if status.get("agent_running"):
+            matched_key_account = status.get("matched_key_account")
+            if matched_key_account:
+                echo_color(
+                    "g", f'SSH agent key matches account: "{matched_key_account}"'
+                )
+            else:
+                echo_color("y", "SSH agent key does not match any managed account.")
+        else:
+            echo_color("y", "SSH agent is not running.")
+
+        return 0
 
     def _handle_init(self, args: argparse.Namespace) -> int:
         """Handle the 'init' command."""

@@ -183,3 +183,51 @@ class TestGetPublicKeyContent:
 
     def test_returns_none_for_missing_file(self, ssh, tmp_path):
         assert ssh.get_public_key_content(str(tmp_path / "nonexistent.pub")) is None
+
+
+class TestGetAgentFingerprints:
+    def test_returns_fingerprints_for_loaded_keys(self, ssh):
+        output = (
+            "2048 SHA256:abc123 work@co.com (RSA)\n"
+            "256 SHA256:def456 personal@co.com (ED25519)\n"
+        )
+        with patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=0, stdout=output),
+        ):
+            fingerprints = ssh.get_agent_fingerprints()
+        assert fingerprints == ["SHA256:abc123", "SHA256:def456"]
+
+    def test_returns_empty_when_agent_has_no_keys(self, ssh):
+        with patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=1, stdout=""),
+        ):
+            assert ssh.get_agent_fingerprints() == []
+
+    def test_returns_empty_when_ssh_add_missing(self, ssh):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            assert ssh.get_agent_fingerprints() == []
+
+
+class TestGetKeyFingerprint:
+    def test_returns_fingerprint(self, ssh, tmp_path):
+        pub_key = tmp_path / "id_rsa_test.pub"
+        pub_key.write_text("ssh-rsa AAAA test@test.com")
+        with patch(
+            "subprocess.run",
+            return_value=MagicMock(
+                returncode=0, stdout="2048 SHA256:abc123 test@test.com (RSA)\n"
+            ),
+        ):
+            assert ssh.get_key_fingerprint(str(pub_key)) == "SHA256:abc123"
+
+    def test_returns_none_on_failure(self, ssh, tmp_path):
+        pub_key = tmp_path / "id_rsa_test.pub"
+        with patch("subprocess.run", return_value=MagicMock(returncode=1, stdout="")):
+            assert ssh.get_key_fingerprint(str(pub_key)) is None
+
+    def test_returns_none_when_ssh_keygen_missing(self, ssh, tmp_path):
+        pub_key = tmp_path / "id_rsa_test.pub"
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            assert ssh.get_key_fingerprint(str(pub_key)) is None

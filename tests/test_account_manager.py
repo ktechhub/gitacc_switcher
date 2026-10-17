@@ -426,3 +426,108 @@ class TestAddAccount:
         assert result is True
         _, kwargs = manager.config_manager.add_account.call_args
         assert kwargs["sign"] is False
+
+
+class TestGetStatus:
+    def test_matches_account_by_identity(self, manager):
+        manager.config_manager.is_git_repo.return_value = False
+        manager.config_manager.get_current_git_config.return_value = {
+            "name": "Work User",
+            "email": "work@company.com",
+        }
+        manager.config_manager.read_accounts.return_value = {"work": WORK_ACCOUNT}
+        manager.ssh_manager.is_ssh_agent_running.return_value = False
+
+        status = manager.get_status()
+
+        assert status["name"] == "Work User"
+        assert status["email"] == "work@company.com"
+        assert status["matched_account"] == "work"
+        assert status["agent_running"] is False
+        assert status["matched_key_account"] is None
+
+    def test_no_match_when_identity_unknown(self, manager):
+        manager.config_manager.is_git_repo.return_value = False
+        manager.config_manager.get_current_git_config.return_value = {
+            "name": "Someone Else",
+            "email": "someone@else.com",
+        }
+        manager.config_manager.read_accounts.return_value = {"work": WORK_ACCOUNT}
+        manager.ssh_manager.is_ssh_agent_running.return_value = False
+
+        status = manager.get_status()
+
+        assert status["matched_account"] is None
+
+    def test_no_match_when_identity_unset(self, manager):
+        manager.config_manager.is_git_repo.return_value = False
+        manager.config_manager.get_current_git_config.return_value = {
+            "name": None,
+            "email": None,
+        }
+        manager.config_manager.read_accounts.return_value = {"work": WORK_ACCOUNT}
+        manager.ssh_manager.is_ssh_agent_running.return_value = False
+
+        status = manager.get_status()
+
+        assert status["matched_account"] is None
+
+    def test_uses_local_git_config_inside_repo(self, manager):
+        manager.config_manager.is_git_repo.return_value = True
+        manager.config_manager.get_current_git_config_local.return_value = {
+            "name": "Work User",
+            "email": "work@company.com",
+        }
+        manager.config_manager.read_accounts.return_value = {"work": WORK_ACCOUNT}
+        manager.ssh_manager.is_ssh_agent_running.return_value = False
+
+        status = manager.get_status()
+
+        manager.config_manager.get_current_git_config_local.assert_called_once()
+        manager.config_manager.get_current_git_config.assert_not_called()
+        assert status["matched_account"] == "work"
+
+    def test_matches_account_by_agent_key_fingerprint(self, manager):
+        manager.config_manager.is_git_repo.return_value = False
+        manager.config_manager.get_current_git_config.return_value = {
+            "name": None,
+            "email": None,
+        }
+        manager.config_manager.read_accounts.return_value = {"work": WORK_ACCOUNT}
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.ssh_manager.get_agent_fingerprints.return_value = ["SHA256:abc123"]
+        manager.ssh_manager.get_key_fingerprint.return_value = "SHA256:abc123"
+
+        status = manager.get_status()
+
+        assert status["agent_running"] is True
+        assert status["matched_key_account"] == "work"
+
+    def test_no_key_match_when_fingerprints_differ(self, manager):
+        manager.config_manager.is_git_repo.return_value = False
+        manager.config_manager.get_current_git_config.return_value = {
+            "name": None,
+            "email": None,
+        }
+        manager.config_manager.read_accounts.return_value = {"work": WORK_ACCOUNT}
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.ssh_manager.get_agent_fingerprints.return_value = ["SHA256:other"]
+        manager.ssh_manager.get_key_fingerprint.return_value = "SHA256:abc123"
+
+        status = manager.get_status()
+
+        assert status["matched_key_account"] is None
+
+    def test_no_key_lookup_when_agent_not_running(self, manager):
+        manager.config_manager.is_git_repo.return_value = False
+        manager.config_manager.get_current_git_config.return_value = {
+            "name": None,
+            "email": None,
+        }
+        manager.config_manager.read_accounts.return_value = {"work": WORK_ACCOUNT}
+        manager.ssh_manager.is_ssh_agent_running.return_value = False
+
+        status = manager.get_status()
+
+        manager.ssh_manager.get_agent_fingerprints.assert_not_called()
+        assert status["matched_key_account"] is None
