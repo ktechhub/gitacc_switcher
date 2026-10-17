@@ -69,6 +69,9 @@ class TestParserCommands:
     def test_logout_command(self, cli):
         assert cli.parser.parse_args(["logout"]).command == "logout"
 
+    def test_status_command(self, cli):
+        assert cli.parser.parse_args(["status"]).command == "status"
+
     def test_init_parses_account(self, cli):
         args = cli.parser.parse_args(["init", "mywork"])
         assert args.account_name == "mywork"
@@ -169,6 +172,50 @@ class TestHandlers:
     def test_handle_verify_failure(self, cli):
         cli.account_manager.verify_account.return_value = False
         assert cli._handle_verify(argparse.Namespace()) == 1
+
+    def test_handle_status_matched(self, cli, capsys):
+        cli.account_manager.get_status.return_value = {
+            "name": "Work User",
+            "email": "work@co.com",
+            "matched_account": "work",
+            "agent_running": True,
+            "matched_key_account": "work",
+        }
+        result = cli._handle_status(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 0
+        assert "Work User" in out
+        assert "work@co.com" in out
+        assert 'Matched account: "work"' in out
+        assert 'SSH agent key matches account: "work"' in out
+
+    def test_handle_status_no_match(self, cli, capsys):
+        cli.account_manager.get_status.return_value = {
+            "name": "Someone",
+            "email": "someone@else.com",
+            "matched_account": None,
+            "agent_running": True,
+            "matched_key_account": None,
+        }
+        result = cli._handle_status(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 0
+        assert "No managed account matches" in out
+        assert "does not match any managed account" in out
+
+    def test_handle_status_no_identity_set(self, cli, capsys):
+        cli.account_manager.get_status.return_value = {
+            "name": None,
+            "email": None,
+            "matched_account": None,
+            "agent_running": False,
+            "matched_key_account": None,
+        }
+        result = cli._handle_status(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 0
+        assert "(not set)" in out
+        assert "SSH agent is not running." in out
 
     def test_handle_init_success(self, cli):
         cli.account_manager.init_repo.return_value = True
@@ -293,5 +340,17 @@ class TestRun:
     def test_logout_command_runs(self, cli):
         cli.account_manager.logout.return_value = True
         with patch.object(sys, "argv", ["gitacc", "logout"]):
+            result = cli.run()
+        assert result == 0
+
+    def test_status_command_runs(self, cli):
+        cli.account_manager.get_status.return_value = {
+            "name": None,
+            "email": None,
+            "matched_account": None,
+            "agent_running": False,
+            "matched_key_account": None,
+        }
+        with patch.object(sys, "argv", ["gitacc", "status"]):
             result = cli.run()
         assert result == 0

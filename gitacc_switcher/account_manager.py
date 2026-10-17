@@ -382,6 +382,67 @@ class AccountManager:
 
         return True
 
+    def get_status(self, repo_path: Optional[Path] = None) -> Dict[str, object]:
+        """Report the currently active Git identity and SSH agent key, and
+        which registered account (if any) they match.
+
+        Read-only: makes no changes to Git config, the SSH agent, or any
+        managed files.
+
+        Args:
+            repo_path: Path to repository (default: current directory). Used
+                to resolve local Git config when run inside a repo.
+
+        Returns:
+            Dictionary with the current name/email, the matched account name
+            (or None), whether the SSH agent is running, and which account
+            (if any) the currently loaded agent key belongs to.
+        """
+        if self.config_manager.is_git_repo(repo_path):
+            current_config = self.config_manager.get_current_git_config_local(repo_path)
+        else:
+            current_config = self.config_manager.get_current_git_config()
+
+        current_name = current_config.get("name")
+        current_email = current_config.get("email")
+
+        accounts = self.config_manager.read_accounts()
+
+        matched_account = None
+        for account_name, account_info in accounts.items():
+            if (
+                current_name
+                and current_email
+                and account_info.get("name") == current_name
+                and account_info.get("email") == current_email
+            ):
+                matched_account = account_name
+                break
+
+        agent_running = self.ssh_manager.is_ssh_agent_running()
+        agent_fingerprints = (
+            self.ssh_manager.get_agent_fingerprints() if agent_running else []
+        )
+
+        matched_key_account = None
+        if agent_fingerprints:
+            for account_name, account_info in accounts.items():
+                public_key = account_info.get("public_key")
+                if not public_key:
+                    continue
+                fingerprint = self.ssh_manager.get_key_fingerprint(public_key)
+                if fingerprint and fingerprint in agent_fingerprints:
+                    matched_key_account = account_name
+                    break
+
+        return {
+            "name": current_name,
+            "email": current_email,
+            "matched_account": matched_account,
+            "agent_running": agent_running,
+            "matched_key_account": matched_key_account,
+        }
+
     def init_repo(self, account_name: str, repo_path: Optional[Path] = None) -> bool:
         """Initialize repository with expected account and install pre-commit hook.
 

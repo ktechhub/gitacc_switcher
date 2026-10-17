@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import re
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 class SSHManager:
@@ -220,6 +220,54 @@ class SSHManager:
                 False,
                 "ssh-add command not found. Please ensure SSH tools are installed.",
             )
+
+    def get_agent_fingerprints(self) -> List[str]:
+        """Get fingerprints of keys currently loaded in the SSH agent.
+
+        Read-only; does not modify the agent.
+
+        Returns:
+            List of fingerprint strings (e.g. "SHA256:abc..."). Empty if the
+            agent is not running, has no keys loaded, or can't be reached.
+        """
+        try:
+            result = subprocess.run(["ssh-add", "-l"], capture_output=True, text=True)
+        except FileNotFoundError:
+            return []
+
+        if result.returncode != 0:
+            return []
+
+        fingerprints = []
+        for line in result.stdout.strip().split("\n"):
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                fingerprints.append(parts[1])
+        return fingerprints
+
+    def get_key_fingerprint(self, public_key_path: str) -> Optional[str]:
+        """Get the fingerprint of a public key file.
+
+        Args:
+            public_key_path: Path to the public key file
+
+        Returns:
+            Fingerprint string (e.g. "SHA256:abc...") or None on error
+        """
+        try:
+            result = subprocess.run(
+                ["ssh-keygen", "-lf", str(public_key_path)],
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            return None
+
+        if result.returncode != 0:
+            return None
+
+        parts = result.stdout.strip().split()
+        return parts[1] if len(parts) >= 2 else None
 
     def get_public_key_content(self, public_key_path: str) -> Optional[str]:
         """Read public key content.
