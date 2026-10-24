@@ -7,6 +7,7 @@ from typing import Optional, Dict, List
 from .config_manager import ConfigManager
 from .ssh_manager import SSHManager
 from .hook_manager import HookManager
+from .rules_manager import RulesManager
 from .utils import echo_color, ask_yes_no, validate_ssh_key_type
 
 
@@ -17,6 +18,7 @@ class AccountManager:
         self.config_manager = ConfigManager()
         self.ssh_manager = SSHManager()
         self.hook_manager = HookManager()
+        self.rules_manager = RulesManager()
 
     def add_account(self, key_type: str = "rsa", sign: bool = False) -> bool:
         """Add a new Git account.
