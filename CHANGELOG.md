@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.3.0...gitacc-switcher-v1.4.0) (2026-10-24)
+
+
+### Features
+
+* add directory-based auto-switch rules and shell hook ([55cdd43](https://github.com/ktechhub/gitacc_switcher/commit/55cdd435b94da83dede80e5c553792edf9583c8a))
+* add directory-based auto-switch rules and shell hook ([#51](https://github.com/ktechhub/gitacc_switcher/issues/51)) ([4670692](https://github.com/ktechhub/gitacc_switcher/commit/46706922d1ac8e9c4c9c45e36d1d547f3ea50674))
+
 ## [1.3.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.2.1...gitacc-switcher-v1.3.0) (2026-10-17)
 
 
