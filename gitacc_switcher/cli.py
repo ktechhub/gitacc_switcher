@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Optional
 
 try:
@@ -12,6 +13,7 @@ except ImportError:
 from . import __version__
 from .account_manager import AccountManager
 from .completion import get_account_names
+from .shell_hook import get_hook_script, get_supported_shells
 from .utils import echo_color, get_ssh_key_types
 
 
@@ -50,6 +52,7 @@ class CLI:
         self._add_verify_command(subparsers)
         self._add_update_command(subparsers)
         self._add_autocomplete_command(subparsers)
+        self._add_rule_command(subparsers)
 
         # Include account names in top-level completion so `gitacc <TAB>` works for
         # the `gitacc <account>` shorthand, not just for subcommand names.
@@ -79,6 +82,8 @@ Examples:
   gitacc init myaccount         Initialize repo with account validation
   gitacc verify                 Verify current account matches repo
   gitacc update myaccount       Update Git name for an account
+  gitacc rule add work ~/work   Auto-switch to "work" inside that directory
+  gitacc rule hook bash         Print the shell hook (add to ~/.bashrc)
         """
 
     def _add_add_command(self, subparsers: argparse._SubParsersAction) -> None:
@@ -253,6 +258,80 @@ Examples:
             description="Install autocomplete for bash/zsh",
         )
         install_parser.set_defaults(func=self._handle_autocomplete_install)
+
+    def _add_rule_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'rule' command parser for directory-based auto-switching."""
+        parser = subparsers.add_parser(
+            "rule",
+            help="Manage directory-based account auto-switch rules",
+            description="Add, remove, and list rules that auto-switch accounts by directory",
+        )
+        rule_subparsers = parser.add_subparsers(
+            dest="rule_command",
+            help="Rule commands",
+        )
+
+        add_parser = rule_subparsers.add_parser(
+            "add",
+            help="Add or update a directory rule",
+            description="Auto-switch to an account whenever inside the given "
+            "directory (or a subdirectory of it)",
+        )
+        account_arg = add_parser.add_argument(
+            "account_name",
+            help="Account to switch to",
+        )
+        add_parser.add_argument(
+            "directory",
+            nargs="?",
+            default=None,
+            help="Directory the rule applies to (default: current directory)",
+        )
+        if argcomplete:
+            account_arg.completer = lambda **kwargs: get_account_names()
+        add_parser.set_defaults(func=self._handle_rule_add)
+
+        remove_parser = rule_subparsers.add_parser(
+            "remove",
+            help="Remove a directory rule",
+        )
+        remove_parser.add_argument(
+            "directory",
+            nargs="?",
+            default=None,
+            help="Directory whose rule should be removed (default: current directory)",
+        )
+        remove_parser.set_defaults(func=self._handle_rule_remove)
+
+        list_parser = rule_subparsers.add_parser(
+            "list",
+            help="List all directory rules",
+        )
+        list_parser.set_defaults(func=self._handle_rule_list)
+
+        hook_parser = rule_subparsers.add_parser(
+            "hook",
+            help="Print a shell hook that auto-switches on directory change",
+            description="Print a snippet for your shell profile that calls "
+            "'gitacc rule check' so rules apply automatically as you move "
+            "between directories",
+        )
+        hook_parser.add_argument(
+            "shell",
+            choices=get_supported_shells(),
+            help="Shell to generate the hook for",
+        )
+        hook_parser.set_defaults(func=self._handle_rule_hook)
+
+        check_parser = rule_subparsers.add_parser(
+            "check",
+            help="Match the current directory against rules (used by the shell hook)",
+            description="Intended to be called by the shell hook on every "
+            "prompt render, not run directly; silently does nothing unless "
+            "the current directory matches a rule for a different account "
+            "than the one currently active",
+        )
+        check_parser.set_defaults(func=self._handle_rule_check)
 
     def _handle_autocomplete_install(self, args: argparse.Namespace) -> int:
         """Handle the 'autocomplete install' command."""
@@ -455,6 +534,80 @@ Examples:
             args.new_email,
             new_sign=getattr(args, "sign", None),
         )
+        return 0 if success else 1
+
+    def _handle_rule_add(self, args: argparse.Namespace) -> int:
+        """Handle the 'rule add' command."""
+        if not self.account_manager.account_exists(args.account_name):
+            echo_color("r", f'Account "{args.account_name}" not found!')
+            return 1
+
+        directory = Path(args.directory) if args.directory else Path.cwd()
+        success = self.account_manager.rules_manager.add_rule(
+            directory, args.account_name
+        )
+        if success:
+            resolved = Path(directory).expanduser().resolve()
+            echo_color("g", f'Rule added: "{resolved}" → "{args.account_name}"')
+        else:
+            echo_color("r", "Failed to add rule!")
+        return 0 if success else 1
+
+    def _handle_rule_remove(self, args: argparse.Namespace) -> int:
+        """Handle the 'rule remove' command."""
+        directory = Path(args.directory) if args.directory else Path.cwd()
+        success = self.account_manager.rules_manager.remove_rule(directory)
+        resolved = Path(directory).expanduser().resolve()
+        if success:
+            echo_color("g", f'Rule removed for "{resolved}"')
+        else:
+            echo_color("y", f'No rule was set for "{resolved}"')
+        return 0 if success else 1
+
+    def _handle_rule_list(self, args: argparse.Namespace) -> int:
+        """Handle the 'rule list' command."""
+        rules = self.account_manager.rules_manager.list_rules()
+        if not rules:
+            echo_color("y", "No directory rules registered yet.")
+            return 0
+
+        echo_color("g", "Directory auto-switch rules:")
+        for directory, account_name in rules.items():
+            print(f"  {directory} → {account_name}")
+        return 0
+
+    def _handle_rule_hook(self, args: argparse.Namespace) -> int:
+        """Handle the 'rule hook' command."""
+        script = get_hook_script(args.shell)
+        if not script:
+            echo_color("r", f'Unsupported shell: "{args.shell}"')
+            return 1
+        print(script)
+        return 0
+
+    def _handle_rule_check(self, args: argparse.Namespace) -> int:
+        """Handle the 'rule check' command.
+
+        Called by the installed shell hook on every prompt render, so it
+        must stay quiet unless there is actually something to do: no match,
+        an already-correct identity, and a down SSH agent (which
+        `switch_account` would otherwise report loudly on every prompt) are
+        all silent no-ops.
+        """
+        account_name = self.account_manager.rules_manager.find_matching_account(
+            Path.cwd()
+        )
+        if not account_name or not self.account_manager.account_exists(account_name):
+            return 0
+
+        status = self.account_manager.get_status()
+        if status.get("matched_account") == account_name:
+            return 0
+
+        if not self.account_manager.ssh_manager.is_ssh_agent_running():
+            return 0
+
+        success = self.account_manager.switch_account(account_name)
         return 0 if success else 1
 
     def _handle_account_name_shortcut(self, account_name: str) -> int:

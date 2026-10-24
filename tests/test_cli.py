@@ -354,3 +354,143 @@ class TestRun:
         with patch.object(sys, "argv", ["gitacc", "status"]):
             result = cli.run()
         assert result == 0
+
+
+# ---------------------------------------------------------------------------
+# `rule` command parsing
+# ---------------------------------------------------------------------------
+
+
+class TestRuleParserCommands:
+    def test_rule_add_parses_account_and_directory(self, cli):
+        args = cli.parser.parse_args(["rule", "add", "work", "/tmp/work"])
+        assert args.command == "rule"
+        assert args.rule_command == "add"
+        assert args.account_name == "work"
+        assert args.directory == "/tmp/work"
+
+    def test_rule_add_directory_defaults_to_none(self, cli):
+        args = cli.parser.parse_args(["rule", "add", "work"])
+        assert args.directory is None
+
+    def test_rule_remove_parses_directory(self, cli):
+        args = cli.parser.parse_args(["rule", "remove", "/tmp/work"])
+        assert args.directory == "/tmp/work"
+
+    def test_rule_remove_directory_defaults_to_none(self, cli):
+        args = cli.parser.parse_args(["rule", "remove"])
+        assert args.directory is None
+
+    def test_rule_list_command(self, cli):
+        args = cli.parser.parse_args(["rule", "list"])
+        assert args.rule_command == "list"
+
+    def test_rule_hook_parses_shell(self, cli):
+        args = cli.parser.parse_args(["rule", "hook", "zsh"])
+        assert args.shell == "zsh"
+
+    def test_rule_hook_rejects_unsupported_shell(self, cli):
+        with pytest.raises(SystemExit):
+            cli.parser.parse_args(["rule", "hook", "fish"])
+
+    def test_rule_check_command(self, cli):
+        args = cli.parser.parse_args(["rule", "check"])
+        assert args.rule_command == "check"
+
+
+# ---------------------------------------------------------------------------
+# `rule` command handlers
+# ---------------------------------------------------------------------------
+
+
+class TestRuleHandlers:
+    def test_handle_rule_add_success(self, cli):
+        cli.account_manager.account_exists.return_value = True
+        cli.account_manager.rules_manager.add_rule.return_value = True
+        args = argparse.Namespace(account_name="work", directory="/tmp/work")
+        assert cli._handle_rule_add(args) == 0
+
+    def test_handle_rule_add_unknown_account(self, cli):
+        cli.account_manager.account_exists.return_value = False
+        args = argparse.Namespace(account_name="ghost", directory=None)
+        assert cli._handle_rule_add(args) == 1
+        cli.account_manager.rules_manager.add_rule.assert_not_called()
+
+    def test_handle_rule_add_failure(self, cli):
+        cli.account_manager.account_exists.return_value = True
+        cli.account_manager.rules_manager.add_rule.return_value = False
+        args = argparse.Namespace(account_name="work", directory="/tmp/work")
+        assert cli._handle_rule_add(args) == 1
+
+    def test_handle_rule_remove_success(self, cli):
+        cli.account_manager.rules_manager.remove_rule.return_value = True
+        args = argparse.Namespace(directory="/tmp/work")
+        assert cli._handle_rule_remove(args) == 0
+
+    def test_handle_rule_remove_no_rule(self, cli):
+        cli.account_manager.rules_manager.remove_rule.return_value = False
+        args = argparse.Namespace(directory="/tmp/work")
+        assert cli._handle_rule_remove(args) == 1
+
+    def test_handle_rule_list_empty(self, cli):
+        cli.account_manager.rules_manager.list_rules.return_value = {}
+        assert cli._handle_rule_list(argparse.Namespace()) == 0
+
+    def test_handle_rule_list_with_rules(self, cli, capsys):
+        cli.account_manager.rules_manager.list_rules.return_value = {
+            "/home/jane/work": "work"
+        }
+        result = cli._handle_rule_list(argparse.Namespace())
+        assert result == 0
+        assert "/home/jane/work" in capsys.readouterr().out
+
+    def test_handle_rule_hook_prints_script(self, cli, capsys):
+        result = cli._handle_rule_hook(argparse.Namespace(shell="bash"))
+        assert result == 0
+        assert "gitacc rule check" in capsys.readouterr().out
+
+    def test_handle_rule_hook_unsupported_shell(self, cli):
+        assert cli._handle_rule_hook(argparse.Namespace(shell="fish")) == 1
+
+    def test_handle_rule_check_no_match_is_noop(self, cli):
+        cli.account_manager.rules_manager.find_matching_account.return_value = None
+        assert cli._handle_rule_check(argparse.Namespace()) == 0
+        cli.account_manager.switch_account.assert_not_called()
+
+    def test_handle_rule_check_unknown_account_is_noop(self, cli):
+        cli.account_manager.rules_manager.find_matching_account.return_value = "ghost"
+        cli.account_manager.account_exists.return_value = False
+        assert cli._handle_rule_check(argparse.Namespace()) == 0
+        cli.account_manager.switch_account.assert_not_called()
+
+    def test_handle_rule_check_already_matching_is_noop(self, cli):
+        cli.account_manager.rules_manager.find_matching_account.return_value = "work"
+        cli.account_manager.account_exists.return_value = True
+        cli.account_manager.get_status.return_value = {"matched_account": "work"}
+        assert cli._handle_rule_check(argparse.Namespace()) == 0
+        cli.account_manager.switch_account.assert_not_called()
+
+    def test_handle_rule_check_agent_down_is_noop(self, cli):
+        cli.account_manager.rules_manager.find_matching_account.return_value = "work"
+        cli.account_manager.account_exists.return_value = True
+        cli.account_manager.get_status.return_value = {"matched_account": "personal"}
+        cli.account_manager.ssh_manager.is_ssh_agent_running.return_value = False
+        assert cli._handle_rule_check(argparse.Namespace()) == 0
+        cli.account_manager.switch_account.assert_not_called()
+
+    def test_handle_rule_check_switches_when_mismatched(self, cli):
+        cli.account_manager.rules_manager.find_matching_account.return_value = "work"
+        cli.account_manager.account_exists.return_value = True
+        cli.account_manager.get_status.return_value = {"matched_account": "personal"}
+        cli.account_manager.ssh_manager.is_ssh_agent_running.return_value = True
+        cli.account_manager.switch_account.return_value = True
+        assert cli._handle_rule_check(argparse.Namespace()) == 0
+        cli.account_manager.switch_account.assert_called_once_with("work")
+
+    def test_handle_rule_check_switch_failure(self, cli):
+        cli.account_manager.rules_manager.find_matching_account.return_value = "work"
+        cli.account_manager.account_exists.return_value = True
+        cli.account_manager.get_status.return_value = {"matched_account": "personal"}
+        cli.account_manager.ssh_manager.is_ssh_agent_running.return_value = True
+        cli.account_manager.switch_account.return_value = False
+        assert cli._handle_rule_check(argparse.Namespace()) == 1

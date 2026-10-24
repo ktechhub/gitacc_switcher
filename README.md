@@ -16,6 +16,7 @@ A Python CLI tool to easily switch between multiple Git SSH accounts. Manage mul
 - Opt-in SSH commit signing per account
 - Colored terminal output with active account indicator
 - Pre-commit hook to prevent commits with the wrong account
+- Opt-in directory-based auto-switching (`gitacc rule`) with a bash/zsh shell hook
 - Shell autocomplete for bash and zsh
 - Cross-platform support (Linux / macOS)
 
@@ -151,6 +152,40 @@ Kill the SSH agent and unset the global Git user config.
 gitacc logout
 ```
 
+### `gitacc rule add <account> [directory]` / `gitacc rule remove [directory]` / `gitacc rule list`
+
+Opt-in, direnv-style directory-based auto-switching: bind an account to a directory (and
+everything beneath it) so the right identity is picked automatically as you move around, instead
+of running `gitacc switch` by hand. `directory` defaults to the current directory. The most
+specific matching directory wins, so a rule on a subdirectory overrides one on its parent.
+
+```bash
+gitacc rule add work ~/projects/work      # anything under ~/projects/work uses "work"
+gitacc rule add personal ~/projects/side  # anything under ~/projects/side uses "personal"
+gitacc rule list
+gitacc rule remove ~/projects/side
+```
+
+Rules by themselves don't do anything — nothing triggers on `cd` until you install the shell hook
+below.
+
+### `gitacc rule hook <bash|zsh>`
+
+Print a shell snippet that calls `gitacc rule check` so rules apply automatically. Add it to your
+shell profile and restart your shell (or `source` it):
+
+```bash
+# bash
+gitacc rule hook bash >> ~/.bashrc
+
+# zsh
+gitacc rule hook zsh >> ~/.zshrc
+```
+
+The hook is silent unless it actually needs to switch accounts: no matching rule, an SSH agent
+that isn't running, or an identity that's already correct all do nothing. This is entirely
+opt-in — `gitacc rule add` alone never touches your shell config.
+
 ### `gitacc autocomplete install`
 
 Install tab-completion for your shell (bash or zsh). After running, restart your shell or `source` your profile.
@@ -179,6 +214,7 @@ gitacc --version
 | Path | Purpose |
 |------|---------|
 | `~/.gitacc` | Stores all account entries (INI format) |
+| `~/.gitaccrules` | Directory → account rules for `gitacc rule` (opt-in auto-switch) |
 | `~/.ssh/id_<type>_<account>` | Private SSH key per account |
 | `~/.ssh/id_<type>_<account>.pub` | Public SSH key per account |
 
@@ -191,6 +227,13 @@ gitacc --version
     private_key = /home/jane/.ssh/id_ed25519_mywork
     public_key = /home/jane/.ssh/id_ed25519_mywork.pub
     sign = false
+```
+
+`~/.gitaccrules` format (one rule per line, most-specific directory wins):
+
+```
+/home/jane/projects/work = work
+/home/jane/projects/work/client-a = client-a
 ```
 
 ## Requirements
