@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.4.0...gitacc-switcher-v1.5.0) (2026-10-31)
+
+
+### Features
+
+* add gitacc doctor health check command ([f9126b9](https://github.com/ktechhub/gitacc_switcher/commit/f9126b973735cc8dc8d72c1d375d7b0a67f72604))
+* add gitacc doctor health check command ([#54](https://github.com/ktechhub/gitacc_switcher/issues/54)) ([4760cd2](https://github.com/ktechhub/gitacc_switcher/commit/4760cd24eb2cb7fce211c3d6f321e7d52e268911))
+
 ## [1.4.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.3.0...gitacc-switcher-v1.4.0) (2026-10-24)
 
 
