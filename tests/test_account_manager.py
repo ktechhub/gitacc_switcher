@@ -531,3 +531,64 @@ class TestGetStatus:
 
         manager.ssh_manager.get_agent_fingerprints.assert_not_called()
         assert status["matched_key_account"] is None
+
+
+class TestRunDoctor:
+    def test_agent_running_and_all_keys_ok(self, manager, tmp_path):
+        key = tmp_path / "id_rsa_work"
+        key.write_text("private")
+        key.chmod(0o600)
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.config_manager.read_accounts.return_value = {
+            "work": {**WORK_ACCOUNT, "private_key": str(key)}
+        }
+        manager.ssh_manager.check_key_file.return_value = {
+            "exists": True,
+            "readable": True,
+            "permissions_ok": True,
+        }
+
+        report = manager.run_doctor()
+
+        assert report["agent_running"] is True
+        assert report["accounts"] == {
+            "work": {"exists": True, "readable": True, "permissions_ok": True}
+        }
+        manager.ssh_manager.check_key_file.assert_called_once_with(str(key))
+
+    def test_agent_not_running(self, manager):
+        manager.ssh_manager.is_ssh_agent_running.return_value = False
+        manager.config_manager.read_accounts.return_value = {}
+
+        report = manager.run_doctor()
+
+        assert report["agent_running"] is False
+        assert report["accounts"] == {}
+
+    def test_flags_account_with_no_private_key_recorded(self, manager):
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.config_manager.read_accounts.return_value = {
+            "broken": {"name": "Broken", "email": "b@co.com"}
+        }
+
+        report = manager.run_doctor()
+
+        assert report["accounts"] == {
+            "broken": {"exists": False, "readable": False, "permissions_ok": False}
+        }
+        manager.ssh_manager.check_key_file.assert_not_called()
+
+    def test_flags_missing_key_file(self, manager):
+        manager.ssh_manager.is_ssh_agent_running.return_value = True
+        manager.config_manager.read_accounts.return_value = {
+            "work": {**WORK_ACCOUNT, "private_key": "/nonexistent/id_rsa_work"}
+        }
+        manager.ssh_manager.check_key_file.return_value = {
+            "exists": False,
+            "readable": False,
+            "permissions_ok": False,
+        }
+
+        report = manager.run_doctor()
+
+        assert report["accounts"]["work"]["exists"] is False

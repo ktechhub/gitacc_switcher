@@ -210,6 +210,50 @@ class TestGetAgentFingerprints:
             assert ssh.get_agent_fingerprints() == []
 
 
+class TestCheckKeyFile:
+    def test_missing_file(self, ssh, tmp_path):
+        result = ssh.check_key_file(str(tmp_path / "nonexistent"))
+        assert result == {
+            "exists": False,
+            "readable": False,
+            "permissions_ok": False,
+        }
+
+    def test_correct_permissions(self, ssh, tmp_path):
+        key = tmp_path / "id_rsa_test"
+        key.write_text("private key data")
+        key.chmod(0o600)
+        result = ssh.check_key_file(str(key))
+        assert result == {
+            "exists": True,
+            "readable": True,
+            "permissions_ok": True,
+        }
+
+    def test_too_permissive(self, ssh, tmp_path):
+        key = tmp_path / "id_rsa_test"
+        key.write_text("private key data")
+        key.chmod(0o644)
+        result = ssh.check_key_file(str(key))
+        assert result == {
+            "exists": True,
+            "readable": True,
+            "permissions_ok": False,
+        }
+
+    def test_unreadable_file(self, ssh, tmp_path):
+        key = tmp_path / "id_rsa_test"
+        key.write_text("private key data")
+        key.chmod(0o600)
+        with patch("os.access", return_value=False):
+            result = ssh.check_key_file(str(key))
+        assert result == {
+            "exists": True,
+            "readable": False,
+            "permissions_ok": False,
+        }
+
+
 class TestGetKeyFingerprint:
     def test_returns_fingerprint(self, ssh, tmp_path):
         pub_key = tmp_path / "id_rsa_test.pub"

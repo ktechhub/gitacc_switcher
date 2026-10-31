@@ -384,6 +384,35 @@ class AccountManager:
 
         return True
 
+    def run_doctor(self) -> Dict[str, object]:
+        """Run read-only health checks on the SSH agent and managed key files.
+
+        Checks whether the SSH agent is running and reachable, and whether
+        each registered account's private key file exists, is readable, and
+        has safe permissions. Makes no changes.
+
+        Returns:
+            Dictionary with 'agent_running' (bool) and 'accounts' (dict
+            mapping account name to its key-file check result — see
+            SSHManager.check_key_file).
+        """
+        agent_running = self.ssh_manager.is_ssh_agent_running()
+
+        accounts = self.config_manager.read_accounts()
+        account_checks = {}
+        for account_name, account_info in accounts.items():
+            private_key = account_info.get("private_key")
+            if not private_key:
+                account_checks[account_name] = {
+                    "exists": False,
+                    "readable": False,
+                    "permissions_ok": False,
+                }
+                continue
+            account_checks[account_name] = self.ssh_manager.check_key_file(private_key)
+
+        return {"agent_running": agent_running, "accounts": account_checks}
+
     def get_status(self, repo_path: Optional[Path] = None) -> Dict[str, object]:
         """Report the currently active Git identity and SSH agent key, and
         which registered account (if any) they match.

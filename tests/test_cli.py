@@ -79,6 +79,9 @@ class TestParserCommands:
     def test_verify_command(self, cli):
         assert cli.parser.parse_args(["verify"]).command == "verify"
 
+    def test_doctor_command(self, cli):
+        assert cli.parser.parse_args(["doctor"]).command == "doctor"
+
     def test_update_no_flags(self, cli):
         args = cli.parser.parse_args(["update", "mywork"])
         assert args.account_name == "mywork"
@@ -217,6 +220,75 @@ class TestHandlers:
         assert "(not set)" in out
         assert "SSH agent is not running." in out
 
+    def test_handle_doctor_all_ok(self, cli, capsys):
+        cli.account_manager.run_doctor.return_value = {
+            "agent_running": True,
+            "accounts": {
+                "work": {"exists": True, "readable": True, "permissions_ok": True}
+            },
+        }
+        result = cli._handle_doctor(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 0
+        assert "SSH agent is running and reachable" in out
+        assert 'Account "work": key file OK' in out
+
+    def test_handle_doctor_agent_not_running(self, cli, capsys):
+        cli.account_manager.run_doctor.return_value = {
+            "agent_running": False,
+            "accounts": {},
+        }
+        result = cli._handle_doctor(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 1
+        assert "not running or not reachable" in out
+
+    def test_handle_doctor_missing_key(self, cli, capsys):
+        cli.account_manager.run_doctor.return_value = {
+            "agent_running": True,
+            "accounts": {
+                "work": {"exists": False, "readable": False, "permissions_ok": False}
+            },
+        }
+        result = cli._handle_doctor(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 1
+        assert 'Account "work": key file is missing' in out
+
+    def test_handle_doctor_unreadable_key(self, cli, capsys):
+        cli.account_manager.run_doctor.return_value = {
+            "agent_running": True,
+            "accounts": {
+                "work": {"exists": True, "readable": False, "permissions_ok": False}
+            },
+        }
+        result = cli._handle_doctor(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 1
+        assert 'Account "work": key file is unreadable' in out
+
+    def test_handle_doctor_bad_permissions(self, cli, capsys):
+        cli.account_manager.run_doctor.return_value = {
+            "agent_running": True,
+            "accounts": {
+                "work": {"exists": True, "readable": True, "permissions_ok": False}
+            },
+        }
+        result = cli._handle_doctor(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 1
+        assert "permissions are too permissive" in out
+
+    def test_handle_doctor_no_accounts(self, cli, capsys):
+        cli.account_manager.run_doctor.return_value = {
+            "agent_running": True,
+            "accounts": {},
+        }
+        result = cli._handle_doctor(argparse.Namespace())
+        out = capsys.readouterr().out
+        assert result == 0
+        assert "No accounts registered yet." in out
+
     def test_handle_init_success(self, cli):
         cli.account_manager.init_repo.return_value = True
         assert cli._handle_init(argparse.Namespace(account_name="work")) == 0
@@ -352,6 +424,15 @@ class TestRun:
             "matched_key_account": None,
         }
         with patch.object(sys, "argv", ["gitacc", "status"]):
+            result = cli.run()
+        assert result == 0
+
+    def test_doctor_command_runs(self, cli):
+        cli.account_manager.run_doctor.return_value = {
+            "agent_running": True,
+            "accounts": {},
+        }
+        with patch.object(sys, "argv", ["gitacc", "doctor"]):
             result = cli.run()
         assert result == 0
 
