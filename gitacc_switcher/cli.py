@@ -48,6 +48,7 @@ class CLI:
         self._add_list_command(subparsers)
         self._add_logout_command(subparsers)
         self._add_status_command(subparsers)
+        self._add_doctor_command(subparsers)
         self._add_init_command(subparsers)
         self._add_verify_command(subparsers)
         self._add_update_command(subparsers)
@@ -79,6 +80,7 @@ Examples:
   gitacc list                   List all registered accounts
   gitacc logout                 Logout current account
   gitacc status                 Show the currently active account
+  gitacc doctor                 Run health checks on the SSH agent and keys
   gitacc init myaccount         Initialize repo with account validation
   gitacc verify                 Verify current account matches repo
   gitacc update myaccount       Update Git name for an account
@@ -174,6 +176,17 @@ Examples:
             "and which managed account (if any) matches",
         )
         parser.set_defaults(func=self._handle_status)
+
+    def _add_doctor_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'doctor' command parser."""
+        parser = subparsers.add_parser(
+            "doctor",
+            help="Run health checks on the SSH agent and managed keys",
+            description="Check that the SSH agent is running and reachable, "
+            "and that each registered account's key file exists and has "
+            "safe permissions. Read-only.",
+        )
+        parser.set_defaults(func=self._handle_doctor)
 
     def _add_init_command(self, subparsers: argparse._SubParsersAction) -> None:
         """Add the 'init' command parser."""
@@ -515,6 +528,40 @@ Examples:
             echo_color("y", "SSH agent is not running.")
 
         return 0
+
+    def _handle_doctor(self, args: argparse.Namespace) -> int:
+        """Handle the 'doctor' command."""
+        report = self.account_manager.run_doctor()
+        all_ok = True
+
+        if report.get("agent_running"):
+            echo_color("g", "✓ SSH agent is running and reachable")
+        else:
+            echo_color("r", "✗ SSH agent is not running or not reachable")
+            all_ok = False
+
+        accounts = report.get("accounts", {})
+        if not accounts:
+            echo_color("y", "No accounts registered yet.")
+
+        for account_name, check in accounts.items():
+            if not check.get("exists"):
+                echo_color("r", f'✗ Account "{account_name}": key file is missing')
+                all_ok = False
+            elif not check.get("readable"):
+                echo_color("r", f'✗ Account "{account_name}": key file is unreadable')
+                all_ok = False
+            elif not check.get("permissions_ok"):
+                echo_color(
+                    "r",
+                    f'✗ Account "{account_name}": key file permissions are too '
+                    "permissive (should be readable by owner only)",
+                )
+                all_ok = False
+            else:
+                echo_color("g", f'✓ Account "{account_name}": key file OK')
+
+        return 0 if all_ok else 1
 
     def _handle_init(self, args: argparse.Namespace) -> int:
         """Handle the 'init' command."""

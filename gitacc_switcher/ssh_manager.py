@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 class SSHManager:
@@ -268,6 +268,32 @@ class SSHManager:
 
         parts = result.stdout.strip().split()
         return parts[1] if len(parts) >= 2 else None
+
+    def check_key_file(self, private_key_path: str) -> Dict[str, bool]:
+        """Check a managed private key file's existence, readability, and permissions.
+
+        Read-only; does not modify anything it checks.
+
+        Args:
+            private_key_path: Path to the private key file to check
+
+        Returns:
+            Dictionary with 'exists', 'readable', and 'permissions_ok' booleans.
+            'permissions_ok' is True when the file is not accessible to
+            group/other, matching the 0600 mode ssh-keygen gives private keys
+            on creation; it is only meaningful when 'exists' and 'readable'
+            are both True.
+        """
+        path = Path(private_key_path)
+        if not path.is_file():
+            return {"exists": False, "readable": False, "permissions_ok": False}
+
+        if not os.access(path, os.R_OK):
+            return {"exists": True, "readable": False, "permissions_ok": False}
+
+        mode = path.stat().st_mode
+        permissions_ok = (mode & 0o077) == 0
+        return {"exists": True, "readable": True, "permissions_ok": permissions_ok}
 
     def get_public_key_content(self, public_key_path: str) -> Optional[str]:
         """Read public key content.
