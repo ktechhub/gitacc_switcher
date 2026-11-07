@@ -309,3 +309,166 @@ class SSHManager:
                 return f.read().strip()
         except Exception:
             return None
+
+    def get_ssh_config_path(self) -> Path:
+        """Get the path to the user's SSH config file (~/.ssh/config)."""
+        return self.ssh_dir / "config"
+
+    @staticmethod
+    def _host_alias_markers(host_alias: str) -> Tuple[str, str]:
+        """Begin/end marker lines that delimit a managed host-alias block.
+
+        Keyed by host_alias so each alias's block can be found, replaced, or
+        removed independently without touching anything else in the file.
+        """
+        return (
+            f"# >>> gitacc-switcher host-alias: {host_alias} >>>",
+            f"# <<< gitacc-switcher host-alias: {host_alias} <<<",
+        )
+
+    def _build_host_alias_block(
+        self, host_alias: str, hostname: str, private_key_path: str, ssh_user: str
+    ) -> str:
+        start, end = self._host_alias_markers(host_alias)
+        lines = [
+            start,
+            f"Host {host_alias}",
+            f"    HostName {hostname}",
+            f"    User {ssh_user}",
+            f"    IdentityFile {private_key_path}",
+            "    IdentitiesOnly yes",
+            end,
+        ]
+        return "\n".join(lines) + "\n"
+
+    def _read_ssh_config(self) -> str:
+        config_path = self.get_ssh_config_path()
+        if not config_path.exists():
+            return ""
+        return config_path.read_text()
+
+    def has_host_alias(self, host_alias: str) -> bool:
+        """Check whether a managed host-alias block already exists.
+
+        Args:
+            host_alias: The `Host` alias to look for (e.g. "github-work")
+
+        Returns:
+            True if a gitacc-managed block for this alias is present
+        """
+        start, _ = self._host_alias_markers(host_alias)
+        return start in self._read_ssh_config()
+
+    def add_host_alias(
+        self,
+        host_alias: str,
+        hostname: str,
+        private_key_path: str,
+        ssh_user: str = "git",
+    ) -> bool:
+        """Add or update a managed SSH config `Host` alias block.
+
+        Writes a clearly delimited block to ~/.ssh/config pointing the alias
+        at the given key, so the user can clone/push via e.g.
+        `git@<host_alias>:org/repo` without hand-editing their SSH config.
+        Safe to call again for the same alias: only the block between its
+        own markers is replaced, leaving the rest of the file untouched.
+
+        Args:
+            host_alias: The `Host` alias to create/update (e.g. "github-work")
+            hostname: Real host to connect to (e.g. "github.com")
+            private_key_path: Path to the account's private SSH key
+            ssh_user: SSH user for the connection (default: "git")
+
+        Returns:
+            True if successful, False otherwise
+        """
+        start, end = self._host_alias_markers(host_alias)
+        block = self._build_host_alias_block(
+            host_alias, hostname, private_key_path, ssh_user
+        )
+        existing = self._read_ssh_config()
+
+        pattern = re.compile(
+            rf"^{re.escape(start)}\n.*?^{re.escape(end)}\n?",
+            re.MULTILINE | re.DOTALL,
+        )
+        if pattern.search(existing):
+            new_content = pattern.sub(block, existing, count=1)
+        else:
+            new_content = existing
+            if new_content and not new_content.endswith("\n"):
+                new_content += "\n"
+            if new_content and not new_content.endswith("\n\n"):
+                new_content += "\n"
+            new_content += block
+
+        try:
+            config_path = self.get_ssh_config_path()
+            is_new_file = not config_path.exists()
+            config_path.write_text(new_content)
+            if is_new_file:
+                config_path.chmod(0o600)
+            return True
+        except OSError:
+            return False
+
+    def remove_host_alias(self, host_alias: str) -> bool:
+        """Remove a managed SSH config `Host` alias block, if present.
+
+        Only the block delimited by this alias's own markers is removed;
+        everything else in ~/.ssh/config is left exactly as it was.
+
+        Args:
+            host_alias: The `Host` alias to remove
+
+        Returns:
+            True if a block was found and removed, False if none existed or
+            on error
+        """
+        start, end = self._host_alias_markers(host_alias)
+        existing = self._read_ssh_config()
+
+        pattern = re.compile(
+            rf"\n?^{re.escape(start)}\n.*?^{re.escape(end)}\n?",
+            re.MULTILINE | re.DOTALL,
+        )
+        new_content, count = pattern.subn("", existing)
+        if count == 0:
+            return False
+
+        try:
+            self.get_ssh_config_path().write_text(new_content)
+            return True
+        except OSError:
+            return False
+
+    def list_host_aliases(self) -> Dict[str, Dict[str, str]]:
+        """List all gitacc-managed SSH config host aliases.
+
+        Read-only; does not modify anything.
+
+        Returns:
+            Dictionary mapping host alias to its hostname, ssh user, and
+            identity file path.
+        """
+        existing = self._read_ssh_config()
+        pattern = re.compile(
+            r"^# >>> gitacc-switcher host-alias: (?P<alias>.+?) >>>\n"
+            r"Host .+?\n"
+            r"\s*HostName (?P<hostname>.+?)\n"
+            r"\s*User (?P<user>.+?)\n"
+            r"\s*IdentityFile (?P<identity>.+?)\n"
+            r"\s*IdentitiesOnly yes\n"
+            r"# <<< gitacc-switcher host-alias: (?P=alias) <<<",
+            re.MULTILINE,
+        )
+
+        aliases = {}
+        for match in pattern.finditer(existing):
+            aliases[match.group("alias")] = {
+                "hostname": match.group("hostname"),
+                "user": match.group("user"),
+                "identity_file": match.group("identity"),
+            }
+        return aliases
