@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.5.0...gitacc-switcher-v1.6.0) (2026-11-07)
+
+
+### Features
+
+* add gitacc alias for per-account SSH config Host aliasing ([0ab5967](https://github.com/ktechhub/gitacc_switcher/commit/0ab5967fbf26f8b7789a33f8dadbd0ceee74aa85))
+* per-account SSH config Host aliasing ([#56](https://github.com/ktechhub/gitacc_switcher/issues/56)) ([4930d54](https://github.com/ktechhub/gitacc_switcher/commit/4930d54b94c501b582e10881df0fbfb63337cab5))
+
 ## [1.5.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.4.0...gitacc-switcher-v1.5.0) (2026-10-31)
 
 
