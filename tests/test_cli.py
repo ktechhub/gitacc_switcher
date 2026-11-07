@@ -575,3 +575,102 @@ class TestRuleHandlers:
         cli.account_manager.ssh_manager.is_ssh_agent_running.return_value = True
         cli.account_manager.switch_account.return_value = False
         assert cli._handle_rule_check(argparse.Namespace()) == 1
+
+
+# ---------------------------------------------------------------------------
+# `alias` command parsing
+# ---------------------------------------------------------------------------
+
+
+class TestAliasCommandParsing:
+    def test_alias_add_parses_defaults(self, cli):
+        args = cli.parser.parse_args(["alias", "add", "work", "github-work"])
+        assert args.command == "alias"
+        assert args.alias_command == "add"
+        assert args.account_name == "work"
+        assert args.host_alias == "github-work"
+        assert args.hostname == "github.com"
+        assert args.ssh_user == "git"
+
+    def test_alias_add_parses_custom_hostname_and_user(self, cli):
+        args = cli.parser.parse_args(
+            [
+                "alias",
+                "add",
+                "work",
+                "gitlab-work",
+                "--hostname",
+                "gitlab.com",
+                "--user",
+                "deploy",
+            ]
+        )
+        assert args.hostname == "gitlab.com"
+        assert args.ssh_user == "deploy"
+
+    def test_alias_remove_parses_host_alias(self, cli):
+        args = cli.parser.parse_args(["alias", "remove", "github-work"])
+        assert args.alias_command == "remove"
+        assert args.host_alias == "github-work"
+
+    def test_alias_list_command(self, cli):
+        args = cli.parser.parse_args(["alias", "list"])
+        assert args.alias_command == "list"
+
+
+# ---------------------------------------------------------------------------
+# `alias` command handlers
+# ---------------------------------------------------------------------------
+
+
+class TestAliasCommandHandlers:
+    def test_handle_alias_add_success(self, cli):
+        args = argparse.Namespace(
+            account_name="work",
+            host_alias="github-work",
+            hostname="github.com",
+            ssh_user="git",
+        )
+        cli.account_manager.add_host_alias.return_value = True
+        assert cli._handle_alias_add(args) == 0
+        cli.account_manager.add_host_alias.assert_called_once_with(
+            "work", "github-work", "github.com", "git"
+        )
+
+    def test_handle_alias_add_failure(self, cli):
+        args = argparse.Namespace(
+            account_name="nobody",
+            host_alias="github-work",
+            hostname="github.com",
+            ssh_user="git",
+        )
+        cli.account_manager.add_host_alias.return_value = False
+        assert cli._handle_alias_add(args) == 1
+
+    def test_handle_alias_remove_success(self, cli):
+        cli.account_manager.remove_host_alias.return_value = True
+        args = argparse.Namespace(host_alias="github-work")
+        assert cli._handle_alias_remove(args) == 0
+
+    def test_handle_alias_remove_not_found(self, cli):
+        cli.account_manager.remove_host_alias.return_value = False
+        args = argparse.Namespace(host_alias="nonexistent")
+        assert cli._handle_alias_remove(args) == 1
+
+    def test_handle_alias_list_empty(self, cli):
+        cli.account_manager.list_host_aliases.return_value = {}
+        assert cli._handle_alias_list(argparse.Namespace()) == 0
+
+    def test_handle_alias_list_with_aliases(self, cli, capsys):
+        cli.account_manager.list_host_aliases.return_value = {
+            "github-work": {
+                "hostname": "github.com",
+                "user": "git",
+                "identity_file": "/home/u/.ssh/id_work",
+            }
+        }
+        result = cli._handle_alias_list(argparse.Namespace())
+        assert result == 0
+        out = capsys.readouterr().out
+        assert "github-work" in out
+        assert "git@github.com" in out

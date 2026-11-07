@@ -254,6 +254,119 @@ class TestCheckKeyFile:
         }
 
 
+class TestHostAlias:
+    def test_add_creates_config_file(self, ssh):
+        config_path = ssh.get_ssh_config_path()
+        assert not config_path.exists()
+
+        assert ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+        assert config_path.exists()
+        content = config_path.read_text()
+        assert "Host github-work" in content
+        assert "HostName github.com" in content
+        assert "IdentityFile /home/u/.ssh/id_work" in content
+        assert "User git" in content
+        assert "IdentitiesOnly yes" in content
+
+    def test_add_sets_restrictive_permissions_on_new_file(self, ssh):
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+        mode = ssh.get_ssh_config_path().stat().st_mode & 0o777
+        assert mode == 0o600
+
+    def test_add_uses_custom_user(self, ssh):
+        ssh.add_host_alias(
+            "gitlab-work", "gitlab.com", "/home/u/.ssh/id_work", ssh_user="deploy"
+        )
+        assert "User deploy" in ssh.get_ssh_config_path().read_text()
+
+    def test_add_preserves_unrelated_existing_content(self, ssh):
+        config_path = ssh.get_ssh_config_path()
+        config_path.write_text("Host other\n    HostName example.com\n")
+
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+
+        content = config_path.read_text()
+        assert "Host other" in content
+        assert "HostName example.com" in content
+        assert "Host github-work" in content
+
+    def test_add_twice_updates_in_place_without_duplicating(self, ssh):
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work_new")
+
+        content = ssh.get_ssh_config_path().read_text()
+        assert content.count("Host github-work") == 1
+        assert "/home/u/.ssh/id_work_new" in content
+        assert "/home/u/.ssh/id_work\n" not in content
+
+    def test_add_second_alias_keeps_first_intact(self, ssh):
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+        ssh.add_host_alias("github-personal", "github.com", "/home/u/.ssh/id_personal")
+
+        content = ssh.get_ssh_config_path().read_text()
+        assert "Host github-work" in content
+        assert "Host github-personal" in content
+        assert "/home/u/.ssh/id_work" in content
+        assert "/home/u/.ssh/id_personal" in content
+
+    def test_has_host_alias(self, ssh):
+        assert ssh.has_host_alias("github-work") is False
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+        assert ssh.has_host_alias("github-work") is True
+
+    def test_remove_returns_false_when_absent(self, ssh):
+        assert ssh.remove_host_alias("nonexistent") is False
+
+    def test_remove_deletes_only_its_own_block(self, ssh):
+        config_path = ssh.get_ssh_config_path()
+        config_path.write_text("Host other\n    HostName example.com\n")
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+        ssh.add_host_alias("github-personal", "github.com", "/home/u/.ssh/id_personal")
+
+        assert ssh.remove_host_alias("github-work") is True
+
+        content = config_path.read_text()
+        assert "Host github-work" not in content
+        assert "Host github-personal" in content
+        assert "Host other" in content
+        assert "HostName example.com" in content
+
+    def test_remove_leaves_file_clean_when_last_alias(self, ssh):
+        config_path = ssh.get_ssh_config_path()
+        config_path.write_text("Host other\n    HostName example.com\n")
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+
+        assert ssh.remove_host_alias("github-work") is True
+
+        content = config_path.read_text()
+        assert "gitacc-switcher" not in content
+        assert "Host other" in content
+
+    def test_list_host_aliases_empty(self, ssh):
+        assert ssh.list_host_aliases() == {}
+
+    def test_list_host_aliases_returns_all(self, ssh):
+        ssh.add_host_alias("github-work", "github.com", "/home/u/.ssh/id_work")
+        ssh.add_host_alias(
+            "gitlab-personal",
+            "gitlab.com",
+            "/home/u/.ssh/id_personal",
+            ssh_user="deploy",
+        )
+
+        aliases = ssh.list_host_aliases()
+        assert aliases["github-work"] == {
+            "hostname": "github.com",
+            "user": "git",
+            "identity_file": "/home/u/.ssh/id_work",
+        }
+        assert aliases["gitlab-personal"] == {
+            "hostname": "gitlab.com",
+            "user": "deploy",
+            "identity_file": "/home/u/.ssh/id_personal",
+        }
+
+
 class TestGetKeyFingerprint:
     def test_returns_fingerprint(self, ssh, tmp_path):
         pub_key = tmp_path / "id_rsa_test.pub"

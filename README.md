@@ -17,6 +17,7 @@ A Python CLI tool to easily switch between multiple Git SSH accounts. Manage mul
 - Colored terminal output with active account indicator
 - Pre-commit hook to prevent commits with the wrong account
 - Opt-in directory-based auto-switching (`gitacc rule`) with a bash/zsh shell hook
+- Per-account SSH config `Host` aliases (`gitacc alias`) for `git@<alias>:org/repo` clone URLs
 - Shell autocomplete for bash and zsh
 - Cross-platform support (Linux / macOS)
 
@@ -186,6 +187,29 @@ The hook is silent unless it actually needs to switch accounts: no matching rule
 that isn't running, or an identity that's already correct all do nothing. This is entirely
 opt-in — `gitacc rule add` alone never touches your shell config.
 
+### `gitacc alias add <account> <host-alias> [--hostname HOSTNAME] [--user USER]` / `gitacc alias remove <host-alias>` / `gitacc alias list`
+
+Bind an SSH config `Host` alias to an account's key by writing a clearly delimited, safely
+add/updatable/removable block to `~/.ssh/config`. This lets you clone/push via a per-account host
+alias (e.g. `git@github-work:org/repo`) without hand-editing your SSH config, and without the
+account's key needing to be loaded into the SSH agent at all.
+
+```bash
+gitacc alias add work github-work                          # git@github-work:org/repo uses "work"'s key
+gitacc alias add personal github-personal --hostname github.com
+gitacc alias list
+gitacc alias remove github-work
+```
+
+`--hostname` defaults to `github.com` and `--user` defaults to `git`. Running `alias add` again
+for the same alias updates it in place; everything else already in `~/.ssh/config` (including
+aliases for other accounts) is left untouched.
+
+```bash
+# clone using the "work" account's key, without ever switching the active identity
+git clone git@github-work:myorg/myrepo.git
+```
+
 ### `gitacc autocomplete install`
 
 Install tab-completion for your shell (bash or zsh). After running, restart your shell or `source` your profile.
@@ -217,6 +241,7 @@ gitacc --version
 | `~/.gitaccrules` | Directory → account rules for `gitacc rule` (opt-in auto-switch) |
 | `~/.ssh/id_<type>_<account>` | Private SSH key per account |
 | `~/.ssh/id_<type>_<account>.pub` | Public SSH key per account |
+| `~/.ssh/config` | Holds gitacc-managed `Host` alias blocks (`gitacc alias`), clearly delimited from any other entries |
 
 `~/.gitacc` format:
 

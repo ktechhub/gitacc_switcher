@@ -54,6 +54,7 @@ class CLI:
         self._add_update_command(subparsers)
         self._add_autocomplete_command(subparsers)
         self._add_rule_command(subparsers)
+        self._add_alias_command(subparsers)
 
         # Include account names in top-level completion so `gitacc <TAB>` works for
         # the `gitacc <account>` shorthand, not just for subcommand names.
@@ -86,6 +87,8 @@ Examples:
   gitacc update myaccount       Update Git name for an account
   gitacc rule add work ~/work   Auto-switch to "work" inside that directory
   gitacc rule hook bash         Print the shell hook (add to ~/.bashrc)
+  gitacc alias add work github-work   Bind a Host alias to an account's key
+  gitacc alias list             List managed SSH config host aliases
         """
 
     def _add_add_command(self, subparsers: argparse._SubParsersAction) -> None:
@@ -345,6 +348,65 @@ Examples:
             "than the one currently active",
         )
         check_parser.set_defaults(func=self._handle_rule_check)
+
+    def _add_alias_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'alias' command parser for SSH config Host aliases."""
+        parser = subparsers.add_parser(
+            "alias",
+            help="Manage per-account SSH config Host aliases",
+            description="Add, remove, and list managed Host alias blocks in "
+            "~/.ssh/config, so you can clone/push via e.g. "
+            "git@<alias>:org/repo using a specific account's key",
+        )
+        alias_subparsers = parser.add_subparsers(
+            dest="alias_command",
+            help="Alias commands",
+        )
+
+        add_parser = alias_subparsers.add_parser(
+            "add",
+            help="Add or update a Host alias for an account",
+            description="Bind an SSH config Host alias to an account's key",
+        )
+        account_arg = add_parser.add_argument(
+            "account_name",
+            help="Account whose key the alias should use",
+        )
+        add_parser.add_argument(
+            "host_alias",
+            help="Host alias to create/update (e.g. github-work)",
+        )
+        add_parser.add_argument(
+            "--hostname",
+            dest="hostname",
+            default="github.com",
+            help="Real host to connect to (default: github.com)",
+        )
+        add_parser.add_argument(
+            "--user",
+            dest="ssh_user",
+            default="git",
+            help="SSH user for the connection (default: git)",
+        )
+        if argcomplete:
+            account_arg.completer = lambda **kwargs: get_account_names()
+        add_parser.set_defaults(func=self._handle_alias_add)
+
+        remove_parser = alias_subparsers.add_parser(
+            "remove",
+            help="Remove a Host alias",
+        )
+        remove_parser.add_argument(
+            "host_alias",
+            help="Host alias to remove",
+        )
+        remove_parser.set_defaults(func=self._handle_alias_remove)
+
+        list_parser = alias_subparsers.add_parser(
+            "list",
+            help="List all managed Host aliases",
+        )
+        list_parser.set_defaults(func=self._handle_alias_list)
 
     def _handle_autocomplete_install(self, args: argparse.Namespace) -> int:
         """Handle the 'autocomplete install' command."""
@@ -656,6 +718,33 @@ Examples:
 
         success = self.account_manager.switch_account(account_name)
         return 0 if success else 1
+
+    def _handle_alias_add(self, args: argparse.Namespace) -> int:
+        """Handle the 'alias add' command."""
+        success = self.account_manager.add_host_alias(
+            args.account_name, args.host_alias, args.hostname, args.ssh_user
+        )
+        return 0 if success else 1
+
+    def _handle_alias_remove(self, args: argparse.Namespace) -> int:
+        """Handle the 'alias remove' command."""
+        success = self.account_manager.remove_host_alias(args.host_alias)
+        return 0 if success else 1
+
+    def _handle_alias_list(self, args: argparse.Namespace) -> int:
+        """Handle the 'alias list' command."""
+        aliases = self.account_manager.list_host_aliases()
+        if not aliases:
+            echo_color("y", "No managed host aliases yet.")
+            return 0
+
+        echo_color("g", "Managed SSH config host aliases:")
+        for host_alias, info in aliases.items():
+            print(
+                f"  {host_alias} → {info['user']}@{info['hostname']} "
+                f"({info['identity_file']})"
+            )
+        return 0
 
     def _handle_account_name_shortcut(self, account_name: str) -> int:
         """Handle account name as shortcut for switch command."""

@@ -384,6 +384,72 @@ class AccountManager:
 
         return True
 
+    def add_host_alias(
+        self,
+        account_name: str,
+        host_alias: str,
+        hostname: str = "github.com",
+        ssh_user: str = "git",
+    ) -> bool:
+        """Bind an SSH config `Host` alias to an account's key.
+
+        Args:
+            account_name: Account whose key the alias should use
+            host_alias: The `Host` alias to create/update (e.g. "github-work")
+            hostname: Real host to connect to (default: "github.com")
+            ssh_user: SSH user for the connection (default: "git")
+
+        Returns:
+            True if successful, False otherwise
+        """
+        account_info = self.config_manager.get_account(account_name)
+        if not account_info:
+            echo_color("r", f'Account "{account_name}" not found!')
+            return False
+
+        private_key = account_info.get("private_key")
+        if not private_key:
+            echo_color("r", f'Account "{account_name}" has no private key on record!')
+            return False
+
+        success = self.ssh_manager.add_host_alias(
+            host_alias, hostname, private_key, ssh_user
+        )
+        if success:
+            echo_color(
+                "g",
+                f'Host alias "{host_alias}" → account "{account_name}" '
+                f"({ssh_user}@{hostname})",
+            )
+        else:
+            echo_color("r", f'Failed to write host alias "{host_alias}"!')
+        return success
+
+    def remove_host_alias(self, host_alias: str) -> bool:
+        """Remove a managed SSH config host alias.
+
+        Args:
+            host_alias: The `Host` alias to remove
+
+        Returns:
+            True if a block was found and removed, False otherwise
+        """
+        success = self.ssh_manager.remove_host_alias(host_alias)
+        if success:
+            echo_color("g", f'Host alias "{host_alias}" removed.')
+        else:
+            echo_color("y", f'No managed host alias "{host_alias}" was found.')
+        return success
+
+    def list_host_aliases(self) -> Dict[str, Dict[str, str]]:
+        """List all gitacc-managed SSH config host aliases.
+
+        Returns:
+            Dictionary mapping host alias to its hostname, ssh user, and
+            identity file path.
+        """
+        return self.ssh_manager.list_host_aliases()
+
     def run_doctor(self) -> Dict[str, object]:
         """Run read-only health checks on the SSH agent and managed key files.
 

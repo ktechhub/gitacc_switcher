@@ -592,3 +592,64 @@ class TestRunDoctor:
         report = manager.run_doctor()
 
         assert report["accounts"]["work"]["exists"] is False
+
+
+class TestAddHostAlias:
+    def test_fails_when_account_not_found(self, manager):
+        manager.config_manager.get_account.return_value = None
+        assert manager.add_host_alias("nobody", "github-work") is False
+        manager.ssh_manager.add_host_alias.assert_not_called()
+
+    def test_fails_when_account_has_no_private_key(self, manager):
+        manager.config_manager.get_account.return_value = {"email": "w@co.com"}
+        assert manager.add_host_alias("work", "github-work") is False
+        manager.ssh_manager.add_host_alias.assert_not_called()
+
+    def test_success_uses_defaults(self, manager):
+        manager.config_manager.get_account.return_value = WORK_ACCOUNT
+        manager.ssh_manager.add_host_alias.return_value = True
+
+        assert manager.add_host_alias("work", "github-work") is True
+
+        manager.ssh_manager.add_host_alias.assert_called_once_with(
+            "github-work", "github.com", WORK_ACCOUNT["private_key"], "git"
+        )
+
+    def test_success_with_custom_hostname_and_user(self, manager):
+        manager.config_manager.get_account.return_value = WORK_ACCOUNT
+        manager.ssh_manager.add_host_alias.return_value = True
+
+        result = manager.add_host_alias(
+            "work", "gitlab-work", hostname="gitlab.com", ssh_user="deploy"
+        )
+
+        assert result is True
+        manager.ssh_manager.add_host_alias.assert_called_once_with(
+            "gitlab-work", "gitlab.com", WORK_ACCOUNT["private_key"], "deploy"
+        )
+
+    def test_returns_false_when_ssh_manager_fails(self, manager):
+        manager.config_manager.get_account.return_value = WORK_ACCOUNT
+        manager.ssh_manager.add_host_alias.return_value = False
+        assert manager.add_host_alias("work", "github-work") is False
+
+
+class TestRemoveHostAlias:
+    def test_success(self, manager):
+        manager.ssh_manager.remove_host_alias.return_value = True
+        assert manager.remove_host_alias("github-work") is True
+
+    def test_not_found(self, manager):
+        manager.ssh_manager.remove_host_alias.return_value = False
+        assert manager.remove_host_alias("nonexistent") is False
+
+
+class TestListHostAliases:
+    def test_delegates_to_ssh_manager(self, manager):
+        data = {"github-work": {"hostname": "github.com"}}
+        manager.ssh_manager.list_host_aliases.return_value = data
+        assert manager.list_host_aliases() == data
+
+    def test_empty(self, manager):
+        manager.ssh_manager.list_host_aliases.return_value = {}
+        assert manager.list_host_aliases() == {}
