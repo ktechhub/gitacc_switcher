@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.6.0...gitacc-switcher-v1.7.0) (2026-11-14)
+
+
+### Features
+
+* add gitacc export / gitacc import commands ([743eb33](https://github.com/ktechhub/gitacc_switcher/commit/743eb33de09d97566bac423413567d0bc50b07f8))
+* add gitacc export / gitacc import commands ([#58](https://github.com/ktechhub/gitacc_switcher/issues/58)) ([b125cdf](https://github.com/ktechhub/gitacc_switcher/commit/b125cdfd6d64b0446c48b19975108dd1d04761ea))
+
 ## [1.6.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.5.0...gitacc-switcher-v1.6.0) (2026-11-07)
 
 
