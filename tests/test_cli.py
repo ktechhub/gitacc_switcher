@@ -674,3 +674,64 @@ class TestAliasCommandHandlers:
         out = capsys.readouterr().out
         assert "github-work" in out
         assert "git@github.com" in out
+
+
+# ---------------------------------------------------------------------------
+# `export` / `import` commands
+# ---------------------------------------------------------------------------
+
+
+class TestExportImportParserCommands:
+    def test_export_parses_output_file(self, cli):
+        args = cli.parser.parse_args(["export", "accounts.json"])
+        assert args.command == "export"
+        assert args.output_file == "accounts.json"
+        assert args.include_keys is False
+
+    def test_export_include_keys_flag(self, cli):
+        args = cli.parser.parse_args(["export", "accounts.json", "--include-keys"])
+        assert args.include_keys is True
+
+    def test_import_parses_input_file(self, cli):
+        args = cli.parser.parse_args(["import", "accounts.json"])
+        assert args.command == "import"
+        assert args.input_file == "accounts.json"
+        assert args.force is False
+
+    def test_import_force_flag(self, cli):
+        args = cli.parser.parse_args(["import", "accounts.json", "--force"])
+        assert args.force is True
+
+
+class TestExportImportHandlers:
+    def test_handle_export_success(self, cli):
+        args = argparse.Namespace(output_file="accounts.json", include_keys=False)
+        cli.account_manager.export_accounts.return_value = True
+        assert cli._handle_export(args) == 0
+        cli.account_manager.export_accounts.assert_called_once_with(
+            "accounts.json", include_keys=False
+        )
+
+    def test_handle_export_failure(self, cli):
+        args = argparse.Namespace(output_file="accounts.json", include_keys=True)
+        cli.account_manager.export_accounts.return_value = False
+        assert cli._handle_export(args) == 1
+        cli.account_manager.export_accounts.assert_called_once_with(
+            "accounts.json", include_keys=True
+        )
+
+    def test_handle_import_success(self, cli):
+        args = argparse.Namespace(input_file="accounts.json", force=False)
+        cli.account_manager.import_accounts.return_value = True
+        assert cli._handle_import(args) == 0
+        cli.account_manager.import_accounts.assert_called_once_with(
+            "accounts.json", force=False
+        )
+
+    def test_handle_import_failure(self, cli):
+        args = argparse.Namespace(input_file="accounts.json", force=True)
+        cli.account_manager.import_accounts.return_value = False
+        assert cli._handle_import(args) == 1
+        cli.account_manager.import_accounts.assert_called_once_with(
+            "accounts.json", force=True
+        )

@@ -185,6 +185,20 @@ class TestGetPublicKeyContent:
         assert ssh.get_public_key_content(str(tmp_path / "nonexistent.pub")) is None
 
 
+class TestGetPrivateKeyContent:
+    def test_reads_content(self, ssh, tmp_path):
+        priv_key = tmp_path / "id_rsa_test"
+        priv_key.write_text(
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n"
+        )
+        assert ssh.get_private_key_content(str(priv_key)) == (
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\n"
+        )
+
+    def test_returns_none_for_missing_file(self, ssh, tmp_path):
+        assert ssh.get_private_key_content(str(tmp_path / "nonexistent")) is None
+
+
 class TestGetAgentFingerprints:
     def test_returns_fingerprints_for_loaded_keys(self, ssh):
         output = (

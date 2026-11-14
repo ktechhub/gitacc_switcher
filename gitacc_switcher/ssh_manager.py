@@ -310,6 +310,26 @@ class SSHManager:
         except Exception:
             return None
 
+    def get_private_key_content(self, private_key_path: str) -> Optional[str]:
+        """Read private key file content.
+
+        Used by `gitacc export --include-keys` to embed key material in an
+        export file; callers must handle the returned content as sensitive
+        (e.g. write it only to a restrictively-permissioned file).
+
+        Args:
+            private_key_path: Path to private key file
+
+        Returns:
+            Private key content (unmodified, including trailing newline) or
+            None on error
+        """
+        try:
+            with open(private_key_path, "r") as f:
+                return f.read()
+        except Exception:
+            return None
+
     def get_ssh_config_path(self) -> Path:
         """Get the path to the user's SSH config file (~/.ssh/config)."""
         return self.ssh_dir / "config"

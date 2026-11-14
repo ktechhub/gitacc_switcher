@@ -55,6 +55,8 @@ class CLI:
         self._add_autocomplete_command(subparsers)
         self._add_rule_command(subparsers)
         self._add_alias_command(subparsers)
+        self._add_export_command(subparsers)
+        self._add_import_command(subparsers)
 
         # Include account names in top-level completion so `gitacc <TAB>` works for
         # the `gitacc <account>` shorthand, not just for subcommand names.
@@ -89,6 +91,8 @@ Examples:
   gitacc rule hook bash         Print the shell hook (add to ~/.bashrc)
   gitacc alias add work github-work   Bind a Host alias to an account's key
   gitacc alias list             List managed SSH config host aliases
+  gitacc export accounts.json   Export account metadata to a file
+  gitacc import accounts.json   Import accounts from an export file
         """
 
     def _add_add_command(self, subparsers: argparse._SubParsersAction) -> None:
@@ -407,6 +411,50 @@ Examples:
             help="List all managed Host aliases",
         )
         list_parser.set_defaults(func=self._handle_alias_list)
+
+    def _add_export_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'export' command parser."""
+        parser = subparsers.add_parser(
+            "export",
+            help="Export account metadata to a file",
+            description="Export registered accounts (metadata only by "
+            "default) to a portable file for backup or migration to "
+            "another machine",
+        )
+        parser.add_argument(
+            "output_file",
+            help="File to write the export to",
+        )
+        parser.add_argument(
+            "--include-keys",
+            dest="include_keys",
+            action="store_true",
+            help="Also embed each account's private/public SSH key file "
+            "contents in the export. The output file will contain private "
+            "key material in plain text (written with 0600 permissions) — "
+            "keep it secure.",
+        )
+        parser.set_defaults(func=self._handle_export)
+
+    def _add_import_command(self, subparsers: argparse._SubParsersAction) -> None:
+        """Add the 'import' command parser."""
+        parser = subparsers.add_parser(
+            "import",
+            help="Import accounts from an export file",
+            description="Import accounts previously created with 'gitacc export'",
+        )
+        parser.add_argument(
+            "input_file",
+            help="File previously created with 'gitacc export'",
+        )
+        parser.add_argument(
+            "--force",
+            dest="force",
+            action="store_true",
+            help="Overwrite existing accounts, host aliases, and key files "
+            "with the same name/path",
+        )
+        parser.set_defaults(func=self._handle_import)
 
     def _handle_autocomplete_install(self, args: argparse.Namespace) -> int:
         """Handle the 'autocomplete install' command."""
@@ -745,6 +793,20 @@ Examples:
                 f"({info['identity_file']})"
             )
         return 0
+
+    def _handle_export(self, args: argparse.Namespace) -> int:
+        """Handle the 'export' command."""
+        success = self.account_manager.export_accounts(
+            args.output_file, include_keys=getattr(args, "include_keys", False)
+        )
+        return 0 if success else 1
+
+    def _handle_import(self, args: argparse.Namespace) -> int:
+        """Handle the 'import' command."""
+        success = self.account_manager.import_accounts(
+            args.input_file, force=getattr(args, "force", False)
+        )
+        return 0 if success else 1
 
     def _handle_account_name_shortcut(self, account_name: str) -> int:
         """Handle account name as shortcut for switch command."""
