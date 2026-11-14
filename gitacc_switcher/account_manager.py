@@ -1,6 +1,7 @@
 """Account management operations."""
 
 import getpass
+import json
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -629,3 +630,215 @@ class AccountManager:
             echo_color("y", f"Please switch to the correct account:")
             echo_color("y", f"  gitacc switch {expected_account}")
             return False
+
+    def export_accounts(self, output_path: Path, include_keys: bool = False) -> bool:
+        """Export registered accounts' metadata to a portable JSON file.
+
+        Metadata-only by default (name, email, sign preference, key *paths*,
+        and any host aliases bound to each account's key) — no key material
+        is read or written unless `include_keys` is explicitly set.
+
+        Args:
+            output_path: File to write the export to
+            include_keys: If True, also embed each account's private/public
+                SSH key file contents in the export. The resulting file will
+                contain private key material in plain text; it is written
+                with 0600 permissions, but the caller is responsible for
+                keeping it secure afterwards.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        accounts = self.config_manager.read_accounts()
+        if not accounts:
+            echo_color("y", "No accounts registered yet. Nothing to export.")
+            return False
+
+        host_aliases = self.ssh_manager.list_host_aliases()
+
+        exported_accounts = {}
+        for account_name, info in accounts.items():
+            private_key = info.get("private_key", "")
+            public_key = info.get("public_key", "")
+
+            entry = {
+                "name": info.get("name", account_name),
+                "email": info.get("email", ""),
+                "sign": info.get("sign", "false"),
+                "private_key": private_key,
+                "public_key": public_key,
+            }
+
+            matching_aliases = {
+                alias: {"hostname": alias_info["hostname"], "user": alias_info["user"]}
+                for alias, alias_info in host_aliases.items()
+                if private_key and alias_info.get("identity_file") == private_key
+            }
+            if matching_aliases:
+                entry["host_aliases"] = matching_aliases
+
+            if include_keys:
+                if public_key:
+                    public_key_content = self.ssh_manager.get_public_key_content(
+                        public_key
+                    )
+                    if public_key_content:
+                        entry["public_key_content"] = public_key_content
+                if private_key:
+                    private_key_content = self.ssh_manager.get_private_key_content(
+                        private_key
+                    )
+                    if private_key_content:
+                        entry["private_key_content"] = private_key_content
+
+            exported_accounts[account_name] = entry
+
+        export_data = {
+            "version": 1,
+            "include_keys": include_keys,
+            "accounts": exported_accounts,
+        }
+
+        output_path = Path(output_path)
+        try:
+            with open(output_path, "w") as f:
+                json.dump(export_data, f, indent=2)
+                f.write("\n")
+            if include_keys:
+                output_path.chmod(0o600)
+        except OSError as e:
+            echo_color("r", f"Failed to write export file: {e}")
+            return False
+
+        echo_color(
+            "g",
+            f'Exported {len(exported_accounts)} account(s) to "{output_path}"',
+        )
+        if include_keys:
+            echo_color(
+                "y",
+                "This file contains private key material in plain text — "
+                "keep it secure (e.g. encrypt it or delete it once transferred).",
+            )
+        else:
+            echo_color(
+                "y",
+                "Metadata only: key files themselves were not copied. Pass "
+                "--include-keys to also embed key material.",
+            )
+        return True
+
+    def _write_imported_key_file(
+        self, path_str: str, content: str, mode: int, force: bool
+    ) -> bool:
+        """Write key material from an import file to disk, if safe to do so.
+
+        Args:
+            path_str: Destination path for the key file
+            content: Key file content to write
+            mode: File permission mode to set (e.g. 0o600 for a private key)
+            force: If True, overwrite an existing file at that path
+
+        Returns:
+            True if the file was written, False if skipped or on error
+        """
+        if not path_str:
+            return False
+        path = Path(path_str)
+        if path.exists() and not force:
+            return False
+        try:
+            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            path.write_text(content)
+            path.chmod(mode)
+            return True
+        except OSError:
+            return False
+
+    def import_accounts(self, input_path: Path, force: bool = False) -> bool:
+        """Import accounts previously written by `export_accounts`.
+
+        Args:
+            input_path: File previously created with `gitacc export`
+            force: If True, overwrite existing accounts, host aliases, and
+                key files with the same name/path. Without it, anything
+                that already exists is left untouched and skipped.
+
+        Returns:
+            True if the file was read and processed, False if the file
+            could not be read or contained no accounts
+        """
+        input_path = Path(input_path)
+        if not input_path.exists():
+            echo_color("r", f'Import file not found: "{input_path}"')
+            return False
+
+        try:
+            with open(input_path, "r") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            echo_color("r", f"Failed to read import file: {e}")
+            return False
+
+        accounts = data.get("accounts", {})
+        if not accounts:
+            echo_color("y", "No accounts found in import file.")
+            return False
+
+        imported = 0
+        skipped = 0
+
+        for account_name, entry in accounts.items():
+            if self.account_exists(account_name) and not force:
+                echo_color(
+                    "y",
+                    f'Skipping "{account_name}": account already exists '
+                    "(use --force to overwrite).",
+                )
+                skipped += 1
+                continue
+
+            private_key = entry.get("private_key", "")
+            public_key = entry.get("public_key", "")
+
+            private_key_content = entry.get("private_key_content")
+            if private_key_content:
+                self._write_imported_key_file(
+                    private_key, private_key_content, 0o600, force
+                )
+            public_key_content = entry.get("public_key_content")
+            if public_key_content:
+                self._write_imported_key_file(
+                    public_key, public_key_content, 0o644, force
+                )
+
+            if self.account_exists(account_name):
+                self.config_manager.remove_account(account_name)
+
+            success = self.config_manager.add_account(
+                account_name,
+                entry.get("name", account_name),
+                entry.get("email", ""),
+                private_key,
+                public_key,
+                sign=str(entry.get("sign", "false")).lower() == "true",
+            )
+            if not success:
+                echo_color("r", f'Failed to import account "{account_name}".')
+                continue
+
+            for alias, alias_info in entry.get("host_aliases", {}).items():
+                if self.ssh_manager.has_host_alias(alias) and not force:
+                    continue
+                self.ssh_manager.add_host_alias(
+                    alias,
+                    alias_info.get("hostname", "github.com"),
+                    private_key,
+                    alias_info.get("user", "git"),
+                )
+
+            imported += 1
+            echo_color("g", f'Imported account "{account_name}"')
+
+        echo_color("g", f"Import complete: {imported} imported, {skipped} skipped.")
+        return True
