@@ -19,12 +19,26 @@ def hook_manager():
     return HookManager()
 
 
-def _mock_git_dir(repo_path):
+def _git_subprocess(configured_hooks_path=None):
+    """Fake `subprocess.run` that answers `git rev-parse --git-dir` and
+    `git config --get core.hooksPath`, mirroring real git's behavior of a
+    non-zero exit with empty output when core.hooksPath isn't set."""
+
+    def _run(cmd, **kwargs):
+        if cmd[:2] == ["git", "rev-parse"]:
+            return MagicMock(returncode=0, stdout=".git\n")
+        if cmd[:2] == ["git", "config"]:
+            if configured_hooks_path is not None:
+                return MagicMock(returncode=0, stdout=f"{configured_hooks_path}\n")
+            return MagicMock(returncode=1, stdout="")
+        raise AssertionError(f"unexpected subprocess.run call: {cmd}")
+
+    return _run
+
+
+def _mock_git_dir(repo_path, configured_hooks_path=None):
     """Return a patch context that makes get_hooks_dir resolve correctly."""
-    return patch(
-        "subprocess.run",
-        return_value=MagicMock(returncode=0, stdout=".git\n"),
-    )
+    return patch("subprocess.run", side_effect=_git_subprocess(configured_hooks_path))
 
 
 class TestGetHooksDir:
@@ -41,6 +55,19 @@ class TestGetHooksDir:
             "subprocess.run", side_effect=subprocess.CalledProcessError(128, "git")
         ):
             assert hook_manager.get_hooks_dir(tmp_path) is None
+
+    def test_honors_configured_core_hooks_path(self, hook_manager, git_repo):
+        (git_repo / "custom-hooks").mkdir()
+        with _mock_git_dir(git_repo, configured_hooks_path="custom-hooks"):
+            result = hook_manager.get_hooks_dir(git_repo)
+        assert result == git_repo / "custom-hooks"
+
+    def test_falls_back_to_git_hooks_when_hooks_path_unset(
+        self, hook_manager, git_repo
+    ):
+        with _mock_git_dir(git_repo, configured_hooks_path=None):
+            result = hook_manager.get_hooks_dir(git_repo)
+        assert result == git_repo / ".git" / "hooks"
 
 
 class TestInstallPreCommitHook:
@@ -81,6 +108,28 @@ class TestInstallPreCommitHook:
             hook_manager.install_pre_commit_hook(git_repo)
             result = hook_manager.install_pre_commit_hook(git_repo)
         assert result is True
+
+    def test_installs_into_configured_hooks_path(self, hook_manager, git_repo):
+        """When core.hooksPath already points elsewhere (e.g. husky, lefthook),
+        gitacc must install there instead of .git/hooks, where git would
+        otherwise silently never run it."""
+        with _mock_git_dir(git_repo, configured_hooks_path="custom-hooks"):
+            assert hook_manager.install_pre_commit_hook(git_repo) is True
+        assert (git_repo / "custom-hooks" / "pre-commit").exists()
+        assert not (git_repo / ".git" / "hooks" / "pre-commit").exists()
+
+    def test_refuses_to_overwrite_foreign_hook_in_configured_hooks_path(
+        self, hook_manager, git_repo
+    ):
+        custom_hooks = git_repo / "custom-hooks"
+        custom_hooks.mkdir()
+        hook = custom_hooks / "pre-commit"
+        hook.write_text("#!/bin/sh\necho 'husky'\n")
+        hook.chmod(0o755)
+        with _mock_git_dir(git_repo, configured_hooks_path="custom-hooks"):
+            result = hook_manager.install_pre_commit_hook(git_repo)
+        assert result is False
+        assert "husky" in hook.read_text()  # original preserved
 
 
 class TestUninstallPreCommitHook:
