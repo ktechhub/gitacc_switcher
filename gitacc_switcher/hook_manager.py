@@ -104,6 +104,12 @@ exit 0
     def get_hooks_dir(self, repo_path: Optional[Path] = None) -> Optional[Path]:
         """Get the Git hooks directory for a repository.
 
+        Honors `core.hooksPath` when the repository already has one configured
+        (as set by tools like husky or lefthook), so gitacc installs its hook
+        where Git will actually run it instead of silently writing into
+        `.git/hooks` and never being invoked. Falls back to `.git/hooks` when
+        `core.hooksPath` isn't set.
+
         Args:
             repo_path: Path to repository (default: current directory)
 
@@ -125,8 +131,20 @@ exit 0
             if not git_dir.is_absolute():
                 git_dir = repo_path / git_dir
 
-            hooks_dir = git_dir / "hooks"
-            return hooks_dir
+            hooks_path_result = subprocess.run(
+                ["git", "config", "--get", "core.hooksPath"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+            )
+            configured_hooks_path = hooks_path_result.stdout.strip()
+            if hooks_path_result.returncode == 0 and configured_hooks_path:
+                hooks_dir = Path(configured_hooks_path)
+                if not hooks_dir.is_absolute():
+                    hooks_dir = repo_path / hooks_dir
+                return hooks_dir
+
+            return git_dir / "hooks"
         except (subprocess.CalledProcessError, FileNotFoundError):
             return None
 
