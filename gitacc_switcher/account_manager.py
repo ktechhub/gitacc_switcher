@@ -611,11 +611,11 @@ class AccountManager:
         current_email = current_config.get("email")
 
         # Check if they match
-        if current_name == expected_name and current_email == expected_email:
+        identity_ok = current_name == expected_name and current_email == expected_email
+        if identity_ok:
             echo_color("g", f'✓ Account verified: "{expected_account}"')
             echo_color("g", f"  Name:  {current_name}")
             echo_color("g", f"  Email: {current_email}")
-            return True
         else:
             echo_color("r", f"✗ Account mismatch!")
             echo_color("r", "")
@@ -629,7 +629,27 @@ class AccountManager:
             echo_color("r", "")
             echo_color("y", f"Please switch to the correct account:")
             echo_color("y", f"  gitacc switch {expected_account}")
-            return False
+
+        self._report_hook_status(repo_path)
+
+        return identity_ok
+
+    def _report_hook_status(self, repo_path: Optional[Path] = None) -> None:
+        """Print the gitacc pre-commit hook's install status as part of 'verify'."""
+        hook_status = self.hook_manager.get_hook_status(repo_path)
+        if hook_status == "present":
+            echo_color("g", "✓ Pre-commit hook: installed and unmodified")
+        elif hook_status == "modified":
+            echo_color(
+                "y",
+                "⚠ Pre-commit hook: present but modified "
+                "(edited manually, or replaced by another tool)",
+            )
+        else:
+            echo_color(
+                "y",
+                "⚠ Pre-commit hook: missing " '(run "gitacc init" to reinstall it)',
+            )
 
     def export_accounts(self, output_path: Path, include_keys: bool = False) -> bool:
         """Export registered accounts' metadata to a portable JSON file.

@@ -246,3 +246,33 @@ exit 0
                 return "Git Account Switcher" in content
         except Exception:
             return False
+
+    def get_hook_status(self, repo_path: Optional[Path] = None) -> str:
+        """Check whether the gitacc pre-commit hook is present and unmodified.
+
+        Args:
+            repo_path: Path to repository (default: current directory)
+
+        Returns:
+            "present" if the hook file matches what gitacc installs,
+            "modified" if a pre-commit hook file exists but its content has
+                changed (edited manually, or replaced by another tool),
+            "missing" if no pre-commit hook file exists at all.
+        """
+        hooks_dir = self.get_hooks_dir(repo_path)
+        if not hooks_dir:
+            return "missing"
+
+        hook_file = hooks_dir / "pre-commit"
+        if not hook_file.exists():
+            return "missing"
+
+        try:
+            with open(hook_file, "r") as f:
+                content = f.read()
+        except Exception:
+            return "modified"
+
+        if content == self.PRE_COMMIT_HOOK_TEMPLATE:
+            return "present"
+        return "modified"

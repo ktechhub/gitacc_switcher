@@ -169,3 +169,35 @@ class TestIsHookInstalled:
         hook.write_text("#!/bin/sh\necho foreign\n")
         with _mock_git_dir(git_repo):
             assert hook_manager.is_hook_installed(git_repo) is False
+
+
+class TestGetHookStatus:
+    def test_present_when_freshly_installed(self, hook_manager, git_repo):
+        with _mock_git_dir(git_repo):
+            hook_manager.install_pre_commit_hook(git_repo)
+            assert hook_manager.get_hook_status(git_repo) == "present"
+
+    def test_missing_when_no_hook_file(self, hook_manager, git_repo):
+        with _mock_git_dir(git_repo):
+            assert hook_manager.get_hook_status(git_repo) == "missing"
+
+    def test_missing_when_not_a_git_repo(self, hook_manager, tmp_path):
+        import subprocess
+
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(128, "git")
+        ):
+            assert hook_manager.get_hook_status(tmp_path) == "missing"
+
+    def test_modified_when_edited_after_install(self, hook_manager, git_repo):
+        with _mock_git_dir(git_repo):
+            hook_manager.install_pre_commit_hook(git_repo)
+            hook = git_repo / ".git" / "hooks" / "pre-commit"
+            hook.write_text(hook.read_text() + "\n# manual edit\n")
+            assert hook_manager.get_hook_status(git_repo) == "modified"
+
+    def test_modified_when_replaced_by_foreign_hook(self, hook_manager, git_repo):
+        hook = git_repo / ".git" / "hooks" / "pre-commit"
+        hook.write_text("#!/bin/sh\necho 'other tool'\n")
+        with _mock_git_dir(git_repo):
+            assert hook_manager.get_hook_status(git_repo) == "modified"
