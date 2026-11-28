@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.8.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.7.0...gitacc-switcher-v1.8.0) (2026-11-28)
+
+
+### Features
+
+* extend gitacc verify with a hook-integrity check ([447e5dd](https://github.com/ktechhub/gitacc_switcher/commit/447e5ddcfa1c12a011c7c9c2e422ed227f359fb9))
+* extend gitacc verify with a hook-integrity check ([#62](https://github.com/ktechhub/gitacc_switcher/issues/62)) ([3ddb329](https://github.com/ktechhub/gitacc_switcher/commit/3ddb329df9480ba4a1ba2c8c202892127c4b9e53))
+
+
+### Bug Fixes
+
+* respect core.hooksPath when installing the pre-commit hook ([f5545eb](https://github.com/ktechhub/gitacc_switcher/commit/f5545ebe1260ca07427d6f6be8b6e48f683bc8c0))
+* respect core.hooksPath when installing the pre-commit hook ([#60](https://github.com/ktechhub/gitacc_switcher/issues/60)) ([4645fc1](https://github.com/ktechhub/gitacc_switcher/commit/4645fc15faaddf3604b04392e2a12b22be885ca6))
+
 ## [1.7.0](https://github.com/ktechhub/gitacc_switcher/compare/gitacc-switcher-v1.6.0...gitacc-switcher-v1.7.0) (2026-11-14)
 
 
