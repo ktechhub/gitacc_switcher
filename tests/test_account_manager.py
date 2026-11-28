@@ -536,6 +536,67 @@ class TestGetStatus:
         assert status["matched_key_account"] is None
 
 
+class TestVerifyAccount:
+    def test_fails_when_not_a_git_repo(self, manager):
+        manager.config_manager.is_git_repo.return_value = False
+
+        assert manager.verify_account() is False
+        manager.hook_manager.get_hook_status.assert_not_called()
+
+    def test_true_when_no_expected_account_configured(self, manager):
+        manager.config_manager.is_git_repo.return_value = True
+        manager.config_manager.get_repo_expected_account.return_value = None
+
+        assert manager.verify_account() is True
+        manager.hook_manager.get_hook_status.assert_not_called()
+
+    def test_fails_when_expected_account_unregistered(self, manager):
+        manager.config_manager.is_git_repo.return_value = True
+        manager.config_manager.get_repo_expected_account.return_value = "work"
+        manager.config_manager.get_account.return_value = None
+
+        assert manager.verify_account() is False
+        manager.hook_manager.get_hook_status.assert_not_called()
+
+    def test_true_on_identity_match_and_reports_hook_present(self, manager):
+        manager.config_manager.is_git_repo.return_value = True
+        manager.config_manager.get_repo_expected_account.return_value = "work"
+        manager.config_manager.get_account.return_value = WORK_ACCOUNT
+        manager.config_manager.get_current_git_config_local.return_value = {
+            "name": "Work User",
+            "email": "work@company.com",
+        }
+        manager.hook_manager.get_hook_status.return_value = "present"
+
+        assert manager.verify_account() is True
+        manager.hook_manager.get_hook_status.assert_called_once_with(None)
+
+    def test_true_on_identity_match_even_when_hook_missing(self, manager):
+        manager.config_manager.is_git_repo.return_value = True
+        manager.config_manager.get_repo_expected_account.return_value = "work"
+        manager.config_manager.get_account.return_value = WORK_ACCOUNT
+        manager.config_manager.get_current_git_config_local.return_value = {
+            "name": "Work User",
+            "email": "work@company.com",
+        }
+        manager.hook_manager.get_hook_status.return_value = "missing"
+
+        assert manager.verify_account() is True
+
+    def test_false_on_identity_mismatch_still_reports_hook_status(self, manager):
+        manager.config_manager.is_git_repo.return_value = True
+        manager.config_manager.get_repo_expected_account.return_value = "work"
+        manager.config_manager.get_account.return_value = WORK_ACCOUNT
+        manager.config_manager.get_current_git_config_local.return_value = {
+            "name": "Someone Else",
+            "email": "someone@else.com",
+        }
+        manager.hook_manager.get_hook_status.return_value = "modified"
+
+        assert manager.verify_account() is False
+        manager.hook_manager.get_hook_status.assert_called_once_with(None)
+
+
 class TestRunDoctor:
     def test_agent_running_and_all_keys_ok(self, manager, tmp_path):
         key = tmp_path / "id_rsa_work"
